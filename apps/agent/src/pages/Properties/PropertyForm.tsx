@@ -70,7 +70,7 @@ export function PropertyForm() {
     e.preventDefault()
     setError(null)
 
-    if (!form.title || !form.priceInr || !form.areaSqft || !form.locality || !form.city) {
+    if (!form.title || !form.priceInr || !form.locality || !form.city) {
       setError('Please fill in all required fields.')
       return
     }
@@ -86,7 +86,6 @@ export function PropertyForm() {
       const floorPlanUrl = floorPlanUrls[0] || null
 
       const priceVal = parseInt(form.priceInr)
-      const areaVal = parseInt(form.areaSqft)
 
       const payload = {
         title: form.title,
@@ -95,7 +94,7 @@ export function PropertyForm() {
         bhk: form.propertyType === 'Plot' || form.propertyType === 'Commercial' ? null : form.bhk,
         priceInr: priceVal,
         priceLabel: formatPriceLabel(priceVal),
-        areaSqft: areaVal,
+        areaSqft: 0,
         locality: form.locality,
         city: form.city,
         address: form.address || null,
@@ -215,17 +214,6 @@ export function PropertyForm() {
           )}
         </div>
 
-        <div className="form-field">
-          <label className="label">Area (Sqft) *</label>
-          <input
-            type="number"
-            className="form-input"
-            required
-            value={form.areaSqft}
-            onChange={(e) => update({ areaSqft: e.target.value })}
-            placeholder="e.g. 1500"
-          />
-        </div>
 
         <div className="form-field">
           <label className="label">Locality *</label>
