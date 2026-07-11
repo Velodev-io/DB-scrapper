@@ -14,14 +14,27 @@ import { Profile } from './pages/Profile'
 function AgentGuard({ children }: { children: React.ReactNode }) {
   const { user } = useUser()
   const role = user?.publicMetadata?.role as string | undefined
+
+  // Auto-reload the Clerk session when no role is present.
+  // This picks up publicMetadata changes made by the admin without
+  // requiring the user to manually hard-refresh the page.
+  useEffect(() => {
+    if (!user || role === 'agent' || role === 'admin') return
+    const id = setInterval(() => { user.reload() }, 2000)
+    return () => clearInterval(id)
+  }, [user, role])
+
   if (!user) return null
+
+  // Show a gentle "waiting for access" state instead of hard "Access Denied"
+  // while we poll for the role to be assigned.
   if (role !== 'agent' && role !== 'admin') {
     return (
       <div className="page" style={{ paddingTop: '3rem', textAlign: 'center' }}>
-        <h2>Access Denied</h2>
+        <h2>Access Pending</h2>
         <p style={{ color: 'var(--concrete)', marginTop: '0.5rem' }}>
-          Your account is not authorised to access this app.<br />
-          Contact your admin to request access.
+          Waiting for admin to grant access…<br />
+          This will update automatically.
         </p>
       </div>
     )

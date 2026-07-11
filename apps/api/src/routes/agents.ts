@@ -45,14 +45,30 @@ export default async function agentRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     const { email } = request.body as { email: string }
     try {
+      // First try to send an invitation (for users not yet in Clerk)
       await clerk.invitations.createInvitation({
         emailAddress:   email,
         publicMetadata: { role: 'agent' },
         redirectUrl:    process.env.AGENT_APP_URL ?? 'https://carry-agent.web.app',
       })
-      return { invited: true, email }
-    } catch (err: any) {
-      return reply.code(400).send({ error: err.message ?? 'Failed to send invitation' })
+      return { invited: true, alreadyRegistered: false, email }
+    } catch (inviteErr: any) {
+      // Clerk returns 422 when the email already has an account.
+      // In that case, look them up and grant the role directly.
+      const status = inviteErr?.status ?? inviteErr?.errors?.[0]?.meta?.httpCode
+      if (status === 422 || inviteErr?.message?.includes('already')) {
+        try {
+          const { data: users } = await clerk.users.getUserList({ emailAddress: [email], limit: 1 })
+          if (!users.length) {
+            return reply.code(400).send({ error: 'User not found' })
+          }
+          await clerk.users.updateUserMetadata(users[0].id, { publicMetadata: { role: 'agent' } })
+          return { invited: true, alreadyRegistered: true, email }
+        } catch (updateErr: any) {
+          return reply.code(400).send({ error: updateErr.message ?? 'Failed to grant access' })
+        }
+      }
+      return reply.code(400).send({ error: inviteErr.message ?? 'Failed to send invitation' })
     }
   })
 

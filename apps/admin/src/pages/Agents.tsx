@@ -58,10 +58,15 @@ export function Agents() {
     try {
       const token = await getToken()
       if (!token) throw new Error('Not authenticated')
-      await api.post('/agents/invite', { email: inviteEmail }, token)
+      const res = await api.post<{ invited: boolean; alreadyRegistered: boolean; email: string }>(
+        '/agents/invite', { email: inviteEmail }, token
+      )
       setShowInvite(false)
       setInviteEmail('')
       fetchAgents()
+      if (res.alreadyRegistered) {
+        alert(`✅ ${res.email} already had an account — agent access granted directly. They can now log in.`)
+      }
     } catch (err: any) {
       setInviteError(err.message || 'Failed to send invitation')
     } finally {
