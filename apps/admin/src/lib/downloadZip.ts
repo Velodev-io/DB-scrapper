@@ -19,7 +19,11 @@ export async function downloadZip(
     await Promise.all(
       publicIds.map(async (id, i) => {
         const blob = await fetchBlob(img.full(id))
-        const ext = blob.type.includes('png') ? 'png' : 'jpg'
+        const mime = blob.type
+        let ext = 'jpg'
+        if (mime.includes('png')) ext = 'png'
+        else if (mime.includes('webp')) ext = 'webp'
+        else if (mime.includes('avif')) ext = 'avif'
         dir.file(`photo-${i + 1}.${ext}`, blob)
       })
     )

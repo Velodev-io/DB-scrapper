@@ -18,7 +18,7 @@ export const img = {
 
   // Full-screen image for admin detail view
   full: (publicId: string) =>
-    `${base()}/q_100/${publicId}`,
+    `${base()}/q_auto,f_auto/${publicId}`,
 
   // Forces browser to download at original quality (admin "Download" button)
   download: (publicId: string, filename: string) =>
