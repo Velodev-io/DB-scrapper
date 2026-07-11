@@ -32,8 +32,7 @@ function AgentGuard({ children }: { children: React.ReactNode }) {
         const res = await fetch(`${base}/agents/sync-role`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${token}`
           }
         })
         if (res.ok) {
