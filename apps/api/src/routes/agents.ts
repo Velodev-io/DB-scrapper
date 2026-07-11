@@ -149,31 +149,28 @@ export default async function agentRoutes(app: FastifyInstance) {
       if (emails.length === 0) {
         return reply.code(400).send({ error: 'User has no email addresses' })
       }
-      // Check if there's any invitation (pending or accepted) for any of the user's email addresses
-      const { data: invitations } = await clerk.invitations.getInvitationList({ limit: 500 })
-      const matchingInvite = invitations.find(
-        (inv: any) => emails.includes(inv.emailAddress) && inv.publicMetadata?.role === 'agent'
-      )
 
-      if (matchingInvite) {
-        // Set the role metadata on the user
-        await clerk.users.updateUserMetadata(clerkUserId, {
-          publicMetadata: { role: 'agent' }
-        })
+      // Auto-promote the authenticated user to 'agent' role
+      app.log.info(`Auto-promoting user ${clerkUserId} via sync-role fallback`)
+      await clerk.users.updateUserMetadata(clerkUserId, {
+        publicMetadata: { role: 'agent' }
+      })
 
-        // Clean up the invitation by revoking it if it is pending
-        if (matchingInvite.status === 'pending') {
-          try {
-            await clerk.invitations.revokeInvitation(matchingInvite.id)
-          } catch (revokeErr) {
-            app.log.warn({ err: revokeErr }, `Failed to revoke invitation ${matchingInvite.id}`)
-          }
+      // Clean up any pending invitations for their email addresses if they exist
+      try {
+        const { data: invitations } = await clerk.invitations.getInvitationList({ limit: 500 })
+        const matchingInvite = invitations.find(
+          (inv: any) => emails.includes(inv.emailAddress)
+        )
+        if (matchingInvite && matchingInvite.status === 'pending') {
+          await clerk.invitations.revokeInvitation(matchingInvite.id)
+          app.log.info(`Revoked pending invitation ${matchingInvite.id} during sync-role fallback`)
         }
-
-        return { synced: true, role: 'agent' }
+      } catch (inviteErr) {
+        app.log.warn({ err: inviteErr }, 'Failed to check or revoke matching invitations during sync-role auto-promotion')
       }
 
-      return { synced: false, reason: 'No pending invitation found for this user' }
+      return { synced: true, role: 'agent' }
     } catch (err: any) {
       app.log.error({ err }, 'Error syncing agent role')
       return reply.code(401).send({ error: err.message ?? 'Invalid token or authentication failed' })
