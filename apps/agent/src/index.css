@@ -114,20 +114,27 @@ label, .label {
 
 .chip {
   padding: 0.5rem 1rem;
-  border-radius: 999px;
+  border-radius: 4px;         /* Small radius, not pill */
   border: 1.5px solid var(--concrete);
   background: transparent;
   color: var(--concrete);
   font-family: var(--font-body);
   font-size: 0.875rem;
   cursor: pointer;
-  min-height: 40px;
+  min-height: 48px;           /* 48px minimum touch target */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.15s;
   white-space: nowrap;
 }
 
 .chip:hover { border-color: var(--ochre); color: var(--ochre); }
-.chip.active { background: var(--ochre); border-color: var(--ochre); color: var(--white); }
+.chip.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bone);
+}
 
 /* ── Buttons ─────────────────────────────────────────────────────── */
 .btn-primary {
@@ -253,18 +260,32 @@ label, .label {
 
 .remove-btn {
   position: absolute;
-  top: 4px; right: 4px;
-  width: 24px; height: 24px;
-  border-radius: 50%;
+  top: 0; right: 0;
+  width: 48px; height: 48px;
   border: none;
-  background: rgba(0,0,0,0.6);
-  color: white;
-  font-size: 0.875rem;
+  background: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+.remove-btn::before {
+  content: '×';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.remove-btn:hover::before {
+  background: rgba(0,0,0,0.8);
 }
 
 .add-photo-btn {
