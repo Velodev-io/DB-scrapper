@@ -1,5 +1,5 @@
-import { compressImage } from './compress.js'
-import { enqueuePendingUpload } from './uploadQueue.js'
+import { compressImage } from './compress'
+import { enqueuePendingUpload } from './uploadQueue'
 
 export type PhotoStatus = 'waiting' | 'compressing' | 'uploading' | 'done' | 'queued' | 'failed'
 
