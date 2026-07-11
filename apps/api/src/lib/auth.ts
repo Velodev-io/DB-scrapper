@@ -7,15 +7,13 @@ const CLERK_SECRET = process.env.CLERK_SECRET_KEY ?? ''
 // Role is embedded in the JWT via Clerk session customization:
 //   Dashboard → Sessions → Customize session token → { "role": "{{user.public_metadata.role}}" }
 
-async function extractRoleFromJWT(request: FastifyRequest): Promise<string | null> {
+async function extractRoleFromJWT(request: FastifyRequest): Promise<{ role: string | null; sub: string | null }> {
   const header = request.headers.authorization ?? ''
   const token  = header.startsWith('Bearer ') ? header.slice(7) : ''
 
-  if (!token || !CLERK_SECRET) return null
+  if (!token || !CLERK_SECRET) return { role: null, sub: null }
 
   try {
-    // verifyToken() verifies the JWT signature locally using Clerk's public key.
-    // It does NOT make an HTTP call to Clerk's API.
     const payload = await verifyToken(token, { secretKey: CLERK_SECRET })
 
     // 'role' is the custom claim we added to the session token template
@@ -29,11 +27,10 @@ async function extractRoleFromJWT(request: FastifyRequest): Promise<string | nul
       role = (user.publicMetadata?.role as string) ?? null
     }
 
-    return role
+    return { role, sub: payload.sub }
   } catch (err) {
     console.error('JWT Verification Error:', err)
-    // Token expired, invalid signature, or malformed — treat as unauthenticated
-    return null
+    return { role: null, sub: null }
   }
 }
 
@@ -41,7 +38,7 @@ async function extractRoleFromJWT(request: FastifyRequest): Promise<string | nul
 // Allows role: "agent" or role: "admin" (admins can test agent endpoints)
 
 export async function requireAgent(request: FastifyRequest, reply: FastifyReply) {
-  const role = await extractRoleFromJWT(request)
+  const { role, sub } = await extractRoleFromJWT(request)
 
   if (!role) {
     return reply.code(401).send({
@@ -56,17 +53,14 @@ export async function requireAgent(request: FastifyRequest, reply: FastifyReply)
     })
   }
 
-  // Attach the agent's Clerk sub (userId) to the request for use in route handlers
-  const header = request.headers.authorization!.slice(7)
-  const payload = await verifyToken(header, { secretKey: CLERK_SECRET })
-  ;(request as any).clerkUserId = payload.sub
+  ;(request as any).clerkUserId = sub
 }
 
 // ── Middleware: Admin routes ───────────────────────────────────────────────
 // Allows role: "admin" only
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
-  const role = await extractRoleFromJWT(request)
+  const { role, sub } = await extractRoleFromJWT(request)
 
   if (!role) {
     return reply.code(401).send({
@@ -80,9 +74,7 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
     })
   }
 
-  const header = request.headers.authorization!.slice(7)
-  const payload = await verifyToken(header, { secretKey: CLERK_SECRET })
-  ;(request as any).clerkUserId = payload.sub
+  ;(request as any).clerkUserId = sub
 }
 
 // ── Helper: Get agent's DB record from Clerk userId ───────────────────────
@@ -105,14 +97,16 @@ export async function getOrCreateAgent(clerkUserId: string): Promise<string> {
   const clerk = createClerkClient({ secretKey: CLERK_SECRET })
   const user = await clerk.users.getUser(clerkUserId)
 
-  const agent = await prisma.agent.create({
-    data: {
+  const agent = await prisma.agent.upsert({
+    where: { clerkUserId },
+    create: {
       clerkUserId,
       name:  (`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.emailAddresses[0]?.emailAddress) ?? 'Unknown',
       email: user.emailAddresses[0]?.emailAddress ?? '',
       phone: user.phoneNumbers[0]?.phoneNumber ?? null,
       status: 'active',
     },
+    update: {}, // already exists — no changes needed
   })
 
   return agent.id

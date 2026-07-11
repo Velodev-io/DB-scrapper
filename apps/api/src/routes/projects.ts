@@ -23,14 +23,18 @@ export default async function projectRoutes(app: FastifyInstance) {
     const body = request.body as any
     const clerkUserId = (request as any).clerkUserId
     const agentId = await getOrCreateAgent(clerkUserId)
+
+    // Destructure only schema-allowed fields
+    const { title, category, location, areaSqft, durationMonths, packageTier,
+            description, beforeImages, afterImages, stageImages } = body
+
     const row = await prisma.constructionProject.create({
       data: {
-        ...body,
-        agentId,
-        beforeImages: body.beforeImages ?? [],
-        afterImages: body.afterImages ?? [],
-        stageImages: body.stageImages ?? [],
-        reviewStatus: 'pending',
+        title, category, location, areaSqft, durationMonths, packageTier, description,
+        beforeImages: beforeImages ?? [],
+        afterImages:  afterImages  ?? [],
+        stageImages:  stageImages  ?? [],
+        agentId, reviewStatus: 'pending',
       },
       include: { agent: { select: { id: true, name: true, email: true } } },
     })
@@ -67,7 +71,7 @@ export default async function projectRoutes(app: FastifyInstance) {
     }
   }, async (request) => {
     const q = request.query as any
-    const page = Number(q.page ?? 1), limit = Number(q.limit ?? 20)
+    const page = Number(q.page ?? 1), limit = Math.min(Number(q.limit ?? 20), 100)
     const where: any = {}
     if (q.agentId)      where.agentId      = q.agentId
     if (q.reviewStatus) where.reviewStatus  = q.reviewStatus

@@ -117,6 +117,16 @@ export default async function uploadsRoutes(app: FastifyInstance) {
 
       const clerkUserId = (request as any).clerkUserId
 
+      // Whitelist allowed field names per model to prevent arbitrary field overwrite
+      const ALLOWED_FIELDS: Record<string, string[]> = {
+        property: ['images', 'floorPlanUrl'],
+        project:  ['beforeImages', 'afterImages', 'stageImages'],
+        labour:   ['profilePhotoUrl'],
+      }
+      if (!ALLOWED_FIELDS[model]?.includes(fieldName)) {
+        return reply.code(400).send({ error: `Invalid fieldName '${fieldName}' for model '${model}'` })
+      }
+
       try {
         if (model === 'property') {
           // Verify this property belongs to the requesting agent

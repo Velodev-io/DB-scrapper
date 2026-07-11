@@ -53,53 +53,55 @@ export async function buildApp() {
     }),
   })
 
-  // ── Swagger / OpenAPI ────────────────────────────────────────────────
-  await app.register(swagger, {
-    openapi: {
-      info: {
-        title:       'Carry Construction — Field Ops API',
-        description: 'Internal API for field agents. All routes require a Clerk JWT Bearer token.',
-        version:     '1.0.0',
-        contact: {
-          name: 'Carry Construction Dev',
-        },
-      },
-      servers: [
-        { url: `http://localhost:${PORT}`, description: 'Local development' },
-        { url: 'https://carry-api.vercel.app', description: 'Production (Vercel)' },
-      ],
-      components: {
-        securitySchemes: {
-          bearerAuth: {
-            type:        'http',
-            scheme:      'bearer',
-            bearerFormat: 'Clerk JWT',
-            description: 'Obtain from Clerk useAuth().getToken() in the frontend apps',
+  // ── Swagger / OpenAPI — dev only ────────────────────────────────────
+  // Never expose interactive docs in production (leaks endpoint schema + allows unauthenticated probing)
+  if (process.env.NODE_ENV !== 'production') {
+    await app.register(swagger, {
+      openapi: {
+        info: {
+          title:       'Carry Construction — Field Ops API',
+          description: 'Internal API for field agents. All routes require a Clerk JWT Bearer token.',
+          version:     '1.0.0',
+          contact: {
+            name: 'Carry Construction Dev',
           },
         },
+        servers: [
+          { url: `http://localhost:${PORT}`, description: 'Local development' },
+        ],
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type:        'http',
+              scheme:      'bearer',
+              bearerFormat: 'Clerk JWT',
+              description: 'Obtain from Clerk useAuth().getToken() in the frontend apps',
+            },
+          },
+        },
+        tags: [
+          { name: 'System',     description: 'Health and utility endpoints' },
+          { name: 'Properties', description: 'Property data collection' },
+          { name: 'Projects',   description: 'Construction project data collection' },
+          { name: 'Labour',     description: 'Labour worker profiles' },
+          { name: 'Agents',     description: 'Agent user management (admin only)' },
+          { name: 'Uploads',    description: 'Cloudinary signed upload management' },
+        ],
       },
-      tags: [
-        { name: 'System',     description: 'Health and utility endpoints' },
-        { name: 'Properties', description: 'Property data collection' },
-        { name: 'Projects',   description: 'Construction project data collection' },
-        { name: 'Labour',     description: 'Labour worker profiles' },
-        { name: 'Agents',     description: 'Agent user management (admin only)' },
-        { name: 'Uploads',    description: 'Cloudinary signed upload management' },
-      ],
-    },
-  })
+    })
 
-  await app.register(swaggerUi, {
-    routePrefix: '/api/docs',
-    uiConfig: {
-      docExpansion: 'list',
-      deepLinking:  true,
-      tryItOutEnabled: true,
-    },
-    theme: {
-      title: 'Carry Field Ops API',
-    },
-  })
+    await app.register(swaggerUi, {
+      routePrefix: '/api/docs',
+      uiConfig: {
+        docExpansion: 'list',
+        deepLinking:  true,
+        tryItOutEnabled: true,
+      },
+      theme: {
+        title: 'Carry Field Ops API',
+      },
+    })
+  }
 
   // ── Health (no prefix) ───────────────────────────────────────────────
   await app.register(healthRoutes)

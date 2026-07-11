@@ -22,20 +22,27 @@ export default async function labourRoutes(app: FastifyInstance) {
     const body = request.body as any
     const clerkUserId = (request as any).clerkUserId
     const agentId = await getOrCreateAgent(clerkUserId)
+
+    // Destructure only schema-allowed fields
+    const { id: clientId, fullName, age, gender, skillLevel, skillType, phone,
+            profilePhotoUrl, houseNo, street, locality, city, pincode } = body
+
+    const data: any = {
+      fullName, age, gender, skillLevel, skillType, phone,
+      profilePhotoUrl, houseNo, street, locality, city, pincode,
+      agentId, reviewStatus: 'pending',
+    }
+
     try {
       const row = await prisma.labour.create({
-        data: {
-          ...body,
-          agentId,
-          reviewStatus: 'pending',
-        },
+        data,
         include: { agent: { select: { id: true, name: true, email: true } } },
       })
       return reply.code(201).send(serializeLabour(row))
     } catch (err: any) {
-      if (err.code === 'P2002' && body.id) {
+      if (err.code === 'P2002' && clientId) {
         const existing = await prisma.labour.findUnique({
-          where: { id: body.id },
+          where: { id: clientId },
           include: { agent: { select: { id: true, name: true, email: true } } },
         })
         if (existing) {
@@ -76,7 +83,7 @@ export default async function labourRoutes(app: FastifyInstance) {
     }
   }, async (request) => {
     const q = request.query as any
-    const page = Number(q.page ?? 1), limit = Number(q.limit ?? 20)
+    const page = Number(q.page ?? 1), limit = Math.min(Number(q.limit ?? 20), 100)
     const where: any = {}
     if (q.agentId)      where.agentId      = q.agentId
     if (q.reviewStatus) where.reviewStatus  = q.reviewStatus

@@ -156,20 +156,6 @@ export default async function agentRoutes(app: FastifyInstance) {
         publicMetadata: { role: 'agent' }
       })
 
-      // Clean up any pending invitations for their email addresses if they exist
-      try {
-        const { data: invitations } = await clerk.invitations.getInvitationList({ limit: 500 })
-        const matchingInvite = invitations.find(
-          (inv: any) => emails.includes(inv.emailAddress)
-        )
-        if (matchingInvite && matchingInvite.status === 'pending') {
-          await clerk.invitations.revokeInvitation(matchingInvite.id)
-          app.log.info(`Revoked pending invitation ${matchingInvite.id} during sync-role fallback`)
-        }
-      } catch (inviteErr) {
-        app.log.warn({ err: inviteErr }, 'Failed to check or revoke matching invitations during sync-role auto-promotion')
-      }
-
       return { synced: true, role: 'agent' }
     } catch (err: any) {
       app.log.error({ err }, 'Error syncing agent role')

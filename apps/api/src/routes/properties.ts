@@ -26,17 +26,28 @@ export default async function propertyRoutes(app: FastifyInstance) {
     const clerkUserId = (request as any).clerkUserId
     const agentId = await getOrCreateAgent(clerkUserId)
 
+    // Destructure only schema-allowed fields (never let client set agentId, reviewStatus, or pick their own id)
+    const { id: clientId, title, propertyType, listingType, bhk, priceInr, priceLabel,
+            areaSqft, locality, city, address, reraNumber, status, furnishing,
+            description, images, floorPlanUrl, lat, lng } = body
+
+    const data: any = {
+      title, propertyType, listingType, bhk, priceInr, priceLabel, areaSqft,
+      locality, city, address, reraNumber, status, furnishing, description,
+      images: images ?? [], floorPlanUrl, lat, lng, agentId, reviewStatus: 'pending',
+    }
+
     try {
       const row = await prisma.property.create({
-        data: { ...body, agentId, images: body.images ?? [], reviewStatus: 'pending' },
+        data,
         include: { agent: { select: { id: true, name: true, email: true } } },
       })
       return reply.code(201).send(serializeProperty(row))
     } catch (err: any) {
-      // Prisma unique constraint violation code is P2002
-      if (err.code === 'P2002' && body.id) {
+      // Prisma unique constraint violation code is P2002 — idempotent retry using client-provided id
+      if (err.code === 'P2002' && clientId) {
         const existing = await prisma.property.findUnique({
-          where: { id: body.id },
+          where: { id: clientId },
           include: { agent: { select: { id: true, name: true, email: true } } },
         })
         if (existing) {
@@ -77,7 +88,7 @@ export default async function propertyRoutes(app: FastifyInstance) {
     }
   }, async (request) => {
     const q = request.query as any
-    const page = Number(q.page ?? 1), limit = Number(q.limit ?? 20)
+    const page = Number(q.page ?? 1), limit = Math.min(Number(q.limit ?? 20), 100)
     const where: any = {}
     if (q.agentId)      where.agentId      = q.agentId
     if (q.reviewStatus) where.reviewStatus  = q.reviewStatus
