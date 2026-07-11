@@ -19,8 +19,19 @@ async function extractRoleFromJWT(request: FastifyRequest): Promise<string | nul
     const payload = await verifyToken(token, { secretKey: CLERK_SECRET })
 
     // 'role' is the custom claim we added to the session token template
-    return (payload as Record<string, unknown>).role as string | null
-  } catch {
+    let role = (payload as Record<string, unknown>).role as string | null
+
+    // Fallback: If role is missing from JWT, fetch user directly from Clerk
+    if (!role && payload.sub) {
+      const { createClerkClient } = await import('@clerk/backend')
+      const clerk = createClerkClient({ secretKey: CLERK_SECRET })
+      const user = await clerk.users.getUser(payload.sub)
+      role = (user.publicMetadata?.role as string) ?? null
+    }
+
+    return role
+  } catch (err) {
+    console.error('JWT Verification Error:', err)
     // Token expired, invalid signature, or malformed — treat as unauthenticated
     return null
   }

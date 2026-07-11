@@ -1,11 +1,21 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import { ClerkProvider } from '@clerk/clerk-react'
+import { clerkAppearance } from '@carry/shared'
+
+import './index.css'
+import App from './App.tsx'
+
+const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+if (!publishableKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>Carry Admin — Scaffold OK ✓</h1>
-      <p>Port 5182</p>
-    </div>
-  </StrictMode>
+    <ClerkProvider publishableKey={publishableKey} appearance={clerkAppearance}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ClerkProvider>
+  </StrictMode>,
 )

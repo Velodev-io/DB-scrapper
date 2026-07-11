@@ -174,7 +174,7 @@ class UploadManager {
     onProgress: (pct: number) => void
   ): Promise<string> {
     const base = import.meta.env.VITE_API_BASE
-    const { signature, timestamp, apiKey, cloudName, folder: returnedFolder, maxBytes } =
+    const { signature, timestamp, apiKey, cloudName, folder: returnedFolder } =
       await fetch(`${base}/uploads/sign?folder=${folder}`, {
         headers: { Authorization: `Bearer ${await window.__clerkGetToken?.()}` }
       }).then(r => r.json())
@@ -185,9 +185,6 @@ class UploadManager {
     form.append('timestamp', String(timestamp))
     form.append('api_key', apiKey)
     form.append('folder', returnedFolder)
-    if (maxBytes) {
-      form.append('max_bytes', String(maxBytes))
-    }
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()

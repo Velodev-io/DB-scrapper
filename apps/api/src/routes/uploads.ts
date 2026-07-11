@@ -70,16 +70,16 @@ export default async function uploadsRoutes(app: FastifyInstance) {
       }
 
       const timestamp = Math.round(Date.now() / 1000)
-      const maxBytes  = 15 * 1024 * 1024  // 15 MB safety net (client already compressed to ~1 MB)
 
       // Cloudinary signature: SHA1 of sorted params + secret
-      const paramStr  = `folder=${folder}&max_bytes=${maxBytes}&timestamp=${timestamp}`
+      // Only include params that are actually sent in the upload FormData
+      const paramStr  = `folder=${folder}&timestamp=${timestamp}`
       const signature = crypto
         .createHash('sha1')
         .update(paramStr + apiSecret)
         .digest('hex')
 
-      return { signature, timestamp, apiKey, cloudName, folder, maxBytes }
+      return { signature, timestamp, apiKey, cloudName, folder }
     }
   )
 

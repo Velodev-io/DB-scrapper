@@ -15,7 +15,7 @@ function AgentGuard({ children }: { children: React.ReactNode }) {
   const { user } = useUser()
   const role = user?.publicMetadata?.role as string | undefined
   if (!user) return null
-  if (role !== 'agent') {
+  if (role !== 'agent' && role !== 'admin') {
     return (
       <div className="page" style={{ paddingTop: '3rem', textAlign: 'center' }}>
         <h2>Access Denied</h2>
