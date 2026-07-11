@@ -53,14 +53,20 @@ export default async function agentRoutes(app: FastifyInstance) {
       })
       return { invited: true, alreadyRegistered: false, email }
     } catch (inviteErr: any) {
-      // Clerk returns 422 when the email already has an account.
-      // In that case, look them up and grant the role directly.
+      app.log.error({ err: inviteErr }, 'Clerk invitation failed')
+
       const status = inviteErr?.status ?? inviteErr?.errors?.[0]?.meta?.httpCode
-      if (status === 422 || inviteErr?.message?.includes('already')) {
+      const isDuplicate = inviteErr?.errors?.some((e: any) => e.code === 'duplicate_record') ||
+                          inviteErr?.message?.includes('already') ||
+                          inviteErr?.message?.includes('duplicate')
+
+      if (status === 422 || isDuplicate) {
         try {
           const { data: users } = await clerk.users.getUserList({ emailAddress: [email], limit: 1 })
           if (!users.length) {
-            return reply.code(400).send({ error: 'User not found' })
+            return reply.code(400).send({
+              error: 'Clerk blocks re-inviting this email due to accepted history. Please ask them to sign up directly first, then grant access.'
+            })
           }
           await clerk.users.updateUserMetadata(users[0].id, { publicMetadata: { role: 'agent' } })
           return { invited: true, alreadyRegistered: true, email }
