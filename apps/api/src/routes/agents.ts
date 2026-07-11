@@ -19,10 +19,10 @@ export default async function agentRoutes(app: FastifyInstance) {
       where: { clerkUserId: { in: clerkUserIds } }
     })
 
-    const dbAgentMap = new Map(dbAgents.map(a => [a.clerkUserId, a]))
+    const dbAgentMap = new Map<string, any>(dbAgents.map((a: any) => [a.clerkUserId, a]))
 
     return activeAgents.map(u => {
-      const dbAgent = dbAgentMap.get(u.id)
+      const dbAgent = dbAgentMap.get(u.id) as any
       return {
         id:           u.id,
         name:         dbAgent?.name || `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || 'Unknown',
