@@ -67,24 +67,23 @@ export default async function webhookRoutes(app: FastifyInstance) {
         }
 
         try {
-          const { data: invitations } = await clerk.invitations.getInvitationList({ limit: 500 })
-          const matchingInvite = invitations.find(
-            (inv: any) => emails.includes(inv.emailAddress) && inv.publicMetadata?.role === 'agent'
-          )
+          app.log.info(`Auto-promoting new signup user ${clerkUserId} to agent role`)
+          await clerk.users.updateUserMetadata(clerkUserId, {
+            publicMetadata: { role: 'agent' }
+          })
 
-          if (matchingInvite) {
-            app.log.info(`Syncing agent role for user ${clerkUserId} matching invite ${matchingInvite.id}`)
-            await clerk.users.updateUserMetadata(clerkUserId, {
-              publicMetadata: { role: 'agent' }
-            })
-
-            if (matchingInvite.status === 'pending') {
-              try {
-                await clerk.invitations.revokeInvitation(matchingInvite.id)
-              } catch (revokeErr) {
-                app.log.warn({ err: revokeErr }, `Failed to revoke invitation ${matchingInvite.id}`)
-              }
+          // Clean up any pending invitations for their email addresses if they exist
+          try {
+            const { data: invitations } = await clerk.invitations.getInvitationList({ limit: 500 })
+            const matchingInvite = invitations.find(
+              (inv: any) => emails.includes(inv.emailAddress)
+            )
+            if (matchingInvite && matchingInvite.status === 'pending') {
+              await clerk.invitations.revokeInvitation(matchingInvite.id)
+              app.log.info(`Revoked pending invitation ${matchingInvite.id} for auto-promoted user`)
             }
+          } catch (inviteErr) {
+            app.log.warn({ err: inviteErr }, 'Failed to check or revoke matching invitations during auto-promotion')
           }
         } catch (err) {
           app.log.error({ err }, `Error matching invitation for newly created user ${clerkUserId}`)

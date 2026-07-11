@@ -110,6 +110,7 @@ export async function getOrCreateAgent(clerkUserId: string): Promise<string> {
       clerkUserId,
       name:  (`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.emailAddresses[0]?.emailAddress) ?? 'Unknown',
       email: user.emailAddresses[0]?.emailAddress ?? '',
+      phone: user.phoneNumbers[0]?.phoneNumber ?? null,
       status: 'active',
     },
   })

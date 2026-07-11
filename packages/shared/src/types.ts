@@ -17,6 +17,8 @@ export interface Agent {
   clerkUserId: string
   name:        string
   email:       string
+  phone?:      string
+  age?:        number
   status:      AgentStatus
   createdAt:   string
   updatedAt:   string

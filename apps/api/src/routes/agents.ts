@@ -11,15 +11,28 @@ export default async function agentRoutes(app: FastifyInstance) {
     schema: { tags: ['Agents'], summary: 'List all agent users (admin)', security: [{ bearerAuth: [] }] }
   }, async () => {
     const { data: users } = await clerk.users.getUserList({ limit: 200 })
-    return users
-      .filter(u => u.publicMetadata?.role === 'agent')
-      .map(u => ({
+    const activeAgents = users.filter(u => u.publicMetadata?.role === 'agent')
+    const clerkUserIds = activeAgents.map(u => u.id)
+
+    // Query database for custom agent profiles
+    const dbAgents = await prisma.agent.findMany({
+      where: { clerkUserId: { in: clerkUserIds } }
+    })
+
+    const dbAgentMap = new Map(dbAgents.map(a => [a.clerkUserId, a]))
+
+    return activeAgents.map(u => {
+      const dbAgent = dbAgentMap.get(u.id)
+      return {
         id:           u.id,
-        name:         `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || 'Unknown',
-        email:        u.emailAddresses[0]?.emailAddress ?? '',
-        status:       'active',
+        name:         dbAgent?.name || `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || 'Unknown',
+        email:        dbAgent?.email || u.emailAddresses[0]?.emailAddress || '',
+        phone:        dbAgent?.phone || u.phoneNumbers[0]?.phoneNumber || '',
+        age:          dbAgent?.age ?? null,
+        status:       dbAgent?.status || 'active',
         createdAt:    new Date(u.createdAt).toISOString(),
-      }))
+      }
+    })
   })
 
   // GET /agents/invitations — list pending invitations
@@ -164,6 +177,76 @@ export default async function agentRoutes(app: FastifyInstance) {
     } catch (err: any) {
       app.log.error({ err }, 'Error syncing agent role')
       return reply.code(401).send({ error: err.message ?? 'Invalid token or authentication failed' })
+    }
+  })
+
+  // PATCH /agents/:clerkUserId — update agent profile (admin only)
+  app.patch('/agents/:clerkUserId', { preHandler: requireAdmin,
+    schema: {
+      tags: ['Agents'],
+      summary: 'Update agent profile (admin)',
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['clerkUserId'],
+        properties: { clerkUserId: { type: 'string' } }
+      },
+      body: {
+        type: 'object',
+        properties: {
+          name:  { type: 'string' },
+          phone: { type: 'string' },
+          age:   { type: 'integer', minimum: 0, maximum: 120 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { clerkUserId } = request.params as { clerkUserId: string }
+    const { name, phone, age } = request.body as { name?: string, phone?: string, age?: number }
+
+    try {
+      const agent = await prisma.agent.findUnique({ where: { clerkUserId } })
+      if (agent && agent.status === 'revoked') {
+        return reply.code(400).send({ error: 'Cannot update a revoked agent' })
+      }
+
+      // Fetch user profile from Clerk to get default email if not in database
+      const user = await clerk.users.getUser(clerkUserId)
+      const email = user.emailAddresses[0]?.emailAddress ?? ''
+
+      const updated = await prisma.agent.upsert({
+        where: { clerkUserId },
+        update: {
+          name:  name !== undefined ? name : undefined,
+          phone: phone !== undefined ? phone : undefined,
+          age:   age !== undefined ? age : undefined,
+        },
+        create: {
+          clerkUserId,
+          email,
+          name:  name ?? (`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || email),
+          phone: phone ?? user.phoneNumbers[0]?.phoneNumber ?? null,
+          age:   age ?? null,
+          status: 'active'
+        }
+      })
+
+      // Also update name in Clerk user profile so they sync
+      if (name) {
+        const parts = name.split(' ')
+        const firstName = parts[0] || ''
+        const lastName = parts.slice(1).join(' ')
+        try {
+          await clerk.users.updateUser(clerkUserId, { firstName, lastName })
+        } catch (clerkErr) {
+          app.log.warn({ err: clerkErr }, 'Failed to update user name in Clerk profile')
+        }
+      }
+
+      return updated
+    } catch (err: any) {
+      app.log.error({ err }, 'Error updating agent details')
+      return reply.code(400).send({ error: err.message ?? 'Failed to update agent profile' })
     }
   })
 }

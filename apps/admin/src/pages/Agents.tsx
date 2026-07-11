@@ -6,6 +6,8 @@ interface AgentEntry {
   id: string
   name?: string
   email: string
+  phone?: string
+  age?: number
   status: 'active' | 'pending'
   createdAt: string
   clerkUserId?: string
@@ -24,6 +26,15 @@ export function Agents() {
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
 
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false)
+  const [editAgentId, setEditAgentId] = useState<string | null>(null) // clerkUserId
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editAge, setEditAge] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
   // Revoke confirm state
   const [revoking, setRevoking] = useState<string | null>(null) // clerkUserId
 
@@ -34,7 +45,7 @@ export function Agents() {
       const token = await getToken()
       if (!token) throw new Error('Not authenticated')
       const [active, pending] = await Promise.all([
-        api.get<{ id: string; name: string; email: string; status: string; createdAt: string }[]>('/agents', token),
+        api.get<{ id: string; name: string; email: string; phone?: string; age?: number; status: string; createdAt: string }[]>('/agents', token),
         api.get<{ id: string; email: string; status: string; createdAt: string }[]>('/agents/invitations', token),
       ])
       const merged: AgentEntry[] = [
@@ -89,6 +100,28 @@ export function Agents() {
     }
   }
 
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editAgentId) return
+    setEditLoading(true)
+    setEditError(null)
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+      await api.patch(`/agents/${editAgentId}`, {
+        name:  editName.trim() || undefined,
+        phone: editPhone.trim() || undefined,
+        age:   editAge ? parseInt(editAge, 10) : null
+      }, token)
+      setShowEdit(false)
+      fetchAgents()
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update agent details')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -109,6 +142,8 @@ export function Agents() {
               <tr>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Phone</th>
+                <th>Age</th>
                 <th>Status</th>
                 <th>Joined</th>
                 <th>Actions</th>
@@ -116,12 +151,14 @@ export function Agents() {
             </thead>
             <tbody>
               {agents.length === 0 && (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>No agents found</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>No agents found</td></tr>
               )}
               {agents.map(agent => (
                 <tr key={agent.id}>
                   <td style={{ fontWeight: 500 }}>{agent.name || '—'}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{agent.email}</td>
+                  <td style={{ fontSize: '0.85rem' }}>{agent.phone || '—'}</td>
+                  <td style={{ fontSize: '0.85rem' }}>{agent.age !== undefined && agent.age !== null ? agent.age : '—'}</td>
                   <td>
                     <span className={`status-pill ${agent.status}`}>{agent.status}</span>
                   </td>
@@ -129,16 +166,42 @@ export function Agents() {
                     {new Date(agent.createdAt).toLocaleDateString()}
                   </td>
                   <td>
-                    <div className="action-group">
+                    <div className="action-group" style={{ display: 'flex', gap: '0.5rem' }}>
                       {agent.status === 'active' && agent.clerkUserId && (
-                        <button
-                          id={`btn-revoke-${agent.id}`}
-                          className="btn-action btn-delete"
-                          disabled={revoking === agent.clerkUserId}
-                          onClick={() => handleRevoke(agent.clerkUserId!)}
-                        >
-                          {revoking === agent.clerkUserId ? 'Revoking…' : 'Revoke'}
-                        </button>
+                        <>
+                          <button
+                            id={`btn-edit-${agent.id}`}
+                            className="btn-action btn-edit"
+                            onClick={() => {
+                              setEditAgentId(agent.clerkUserId!)
+                              setEditName(agent.name || '')
+                              setEditPhone(agent.phone || '')
+                              setEditAge(agent.age !== undefined && agent.age !== null ? String(agent.age) : '')
+                              setEditError(null)
+                              setShowEdit(true)
+                            }}
+                            style={{
+                              backgroundColor: 'var(--sand)',
+                              color: 'var(--coal)',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '0.375rem 0.75rem',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                              fontWeight: 500
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            id={`btn-revoke-${agent.id}`}
+                            className="btn-action btn-delete"
+                            disabled={revoking === agent.clerkUserId}
+                            onClick={() => handleRevoke(agent.clerkUserId!)}
+                          >
+                            {revoking === agent.clerkUserId ? 'Revoking…' : 'Revoke'}
+                          </button>
+                        </>
                       )}
                       {agent.status === 'pending' && (
                         <span style={{ color: 'var(--concrete)', fontSize: '0.8rem' }}>Invited — awaiting sign-up</span>
@@ -186,6 +249,86 @@ export function Agents() {
                 </button>
                 <button id="btn-send-invite" type="submit" className="btn-primary" disabled={inviteLoading}>
                   {inviteLoading ? 'Sending…' : 'Send Invite'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEdit && (
+        <div className="modal-backdrop" onClick={() => setShowEdit(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Edit Agent Profile</h2>
+            <form onSubmit={handleEdit}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="e.g. Suryansh Singh"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Phone Number
+                </label>
+                <input
+                  type="text"
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value)}
+                  placeholder="e.g. +91 9999999999"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Age
+                </label>
+                <input
+                  type="number"
+                  value={editAge}
+                  onChange={e => setEditAge(e.target.value)}
+                  placeholder="e.g. 25"
+                  min="0"
+                  max="120"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              {editError && <p style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '1rem' }}>{editError}</p>}
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowEdit(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={editLoading}>
+                  {editLoading ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </form>
