@@ -68,6 +68,9 @@ export default async function agentRoutes(app: FastifyInstance) {
               error: 'Clerk blocks re-inviting this email due to accepted history. Please ask them to sign up directly first, then grant access.'
             })
           }
+          if (users[0].publicMetadata?.role === 'admin') {
+            return reply.code(400).send({ error: 'User is already an Admin' })
+          }
           await clerk.users.updateUserMetadata(users[0].id, { publicMetadata: { role: 'agent' } })
           return { invited: true, alreadyRegistered: true, email }
         } catch (updateErr: any) {
@@ -112,6 +115,14 @@ export default async function agentRoutes(app: FastifyInstance) {
     try {
       const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY! })
       const clerkUserId = payload.sub
+
+      // Prevent role sync if this agent was revoked in our database
+      const existingAgent = await prisma.agent.findUnique({
+        where: { clerkUserId }
+      })
+      if (existingAgent && existingAgent.status === 'revoked') {
+        return reply.code(403).send({ error: 'Forbidden — Agent access is revoked' })
+      }
 
       // Fetch user profile from Clerk
       const user = await clerk.users.getUser(clerkUserId)

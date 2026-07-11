@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { createClerkClient } from '@clerk/backend'
 import { Webhook } from 'svix'
+import { prisma } from '../lib/prisma.js'
 
 export default async function webhookRoutes(app: FastifyInstance) {
   const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! })
@@ -53,6 +54,18 @@ export default async function webhookRoutes(app: FastifyInstance) {
       const emails = (email_addresses || []).map((e: any) => e.email_address)
 
       if (emails.length > 0) {
+        // Prevent auto-syncing if the email is associated with a revoked agent in our DB
+        const revokedAgent = await prisma.agent.findFirst({
+          where: {
+            email: { in: emails },
+            status: 'revoked'
+          }
+        })
+        if (revokedAgent) {
+          app.log.info(`Clerk Webhook: Blocked auto-sync role for revoked agent email(s): ${emails.join(', ')}`)
+          return { received: true, blocked: true, reason: 'Agent is revoked in local DB' }
+        }
+
         try {
           const { data: invitations } = await clerk.invitations.getInvitationList({ limit: 500 })
           const matchingInvite = invitations.find(
