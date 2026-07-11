@@ -1,0 +1,22 @@
+{
+  "name": "carry-field-ops",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,agent,admin -c blue,green,magenta \"npm run dev -w apps/api\" \"npm run dev -w apps/agent\" \"npm run dev -w apps/admin\"",
+    "dev:api":   "npm run dev -w apps/api",
+    "dev:agent": "npm run dev -w apps/agent",
+    "dev:admin": "npm run dev -w apps/admin",
+    "build": "npm run build -w apps/agent && npm run build -w apps/admin",
+    "db:push":   "npm run prisma:push -w apps/api",
+    "db:studio": "npm run prisma:studio -w apps/api",
+    "db:migrate": "npm run prisma:migrate -w apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
