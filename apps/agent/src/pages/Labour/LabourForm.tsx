@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import {
@@ -9,6 +9,7 @@ import {
 import { useFormPersist } from '../../hooks/useFormPersist'
 import { PhotoUploader } from '../../components/PhotoUploader/PhotoUploader'
 import { uploadManager } from '../../lib/UploadManager'
+import { enqueuePendingRecord, updateRecordId } from '../../lib/uploadQueue'
 
 interface FormState {
   fullName: string
@@ -44,6 +45,7 @@ export function LabourForm() {
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const submittingRef = useRef(false)
 
   const storageKey = `carry:form:labour:${user?.id ?? 'guest'}`
   const { form, update, clear } = useFormPersist<FormState>(storageKey, initialForm)
@@ -55,6 +57,7 @@ export function LabourForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submittingRef.current) return
     setError(null)
 
     if (!form.fullName || !form.age || !form.phone) {
@@ -62,18 +65,59 @@ export function LabourForm() {
       return
     }
 
+    submittingRef.current = true
     setSubmitting(true)
 
     try {
-      const token = await getToken()
-      if (!token) throw new Error('Not authenticated')
-
-      const profilePhotoUrls = uploadManager.getUploadedIds('profilePhotoUrl')
-      const profilePhotoUrl = profilePhotoUrls[0] || null
+      const recordId = crypto.randomUUID()
+      const allProfilePhotoUrls = uploadManager.getUploadedIds('profilePhotoUrl')
+      const queuedPhotoLocalId = allProfilePhotoUrls
+        .find(id => id.startsWith('__queued__:'))
+        ?.replace('__queued__:', '') ?? null
 
       const ageVal = parseInt(form.age)
 
+      if (!navigator.onLine) {
+        const tempId = `temp-${recordId}`
+
+        if (queuedPhotoLocalId) {
+          await updateRecordId(queuedPhotoLocalId, tempId)
+        }
+
+        await enqueuePendingRecord({
+          id: tempId,
+          type: 'labour',
+          payload: {
+            id: recordId,
+            fullName: form.fullName,
+            age: ageVal,
+            gender: form.gender,
+            skillLevel: form.skillLevel,
+            skillType: form.skillLevel === 'Skilled' ? form.skillType : null,
+            phone: form.phone,
+            profilePhotoUrl: queuedPhotoLocalId, // bare UUID
+            houseNo: form.houseNo || null,
+            street: form.street || null,
+            locality: form.locality || null,
+            city: form.city || null,
+            pincode: form.pincode || null,
+          },
+          createdAt: Date.now(),
+        })
+
+        clear()
+        uploadManager.clear('profilePhotoUrl')
+        navigate('/labour')
+        return
+      }
+
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+
+      const profilePhotoUrl = allProfilePhotoUrls.find(id => !id.startsWith('__queued__:')) ?? null
+
       const payload = {
+        id: recordId,
         fullName: form.fullName,
         age: ageVal,
         gender: form.gender,
@@ -88,13 +132,18 @@ export function LabourForm() {
         pincode: form.pincode || null,
       }
 
-      await api.post('/labour', payload, token)
+      const newLabour = await api.post<{ id: string }>('/labour', payload, token)
+      if (queuedPhotoLocalId) {
+        await updateRecordId(queuedPhotoLocalId, newLabour.id)
+      }
+
       clear()
       uploadManager.clear('profilePhotoUrl')
       navigate('/labour')
     } catch (err: any) {
       setError(err.message || 'Failed to submit labour profile')
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }

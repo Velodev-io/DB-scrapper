@@ -19,7 +19,9 @@ async function request<T>(
   const base = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:4001/api/v1'
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    // Only set Content-Type when sending a body — Fastify rejects bodyless
+    // DELETE/GET requests that carry Content-Type: application/json with 400.
+    ...(init.body ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(init.headers as Record<string, string> ?? {}),
   }

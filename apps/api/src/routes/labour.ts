@@ -14,6 +14,7 @@ export default async function labourRoutes(app: FastifyInstance) {
           skillLevel: {type:'string'}, skillType: {type:'string'}, phone: {type:'string'},
           profilePhotoUrl: {type:'string'}, houseNo: {type:'string'}, street: {type:'string'},
           locality: {type:'string'}, city: {type:'string'}, pincode: {type:'string'},
+          id: {type:'string'},
         }
       }
     }
@@ -21,15 +22,28 @@ export default async function labourRoutes(app: FastifyInstance) {
     const body = request.body as any
     const clerkUserId = (request as any).clerkUserId
     const agentId = await getOrCreateAgent(clerkUserId)
-    const row = await prisma.labour.create({
-      data: {
-        ...body,
-        agentId,
-        reviewStatus: 'pending',
-      },
-      include: { agent: { select: { id: true, name: true, email: true } } },
-    })
-    return reply.code(201).send(serializeLabour(row))
+    try {
+      const row = await prisma.labour.create({
+        data: {
+          ...body,
+          agentId,
+          reviewStatus: 'pending',
+        },
+        include: { agent: { select: { id: true, name: true, email: true } } },
+      })
+      return reply.code(201).send(serializeLabour(row))
+    } catch (err: any) {
+      if (err.code === 'P2002' && body.id) {
+        const existing = await prisma.labour.findUnique({
+          where: { id: body.id },
+          include: { agent: { select: { id: true, name: true, email: true } } },
+        })
+        if (existing) {
+          return reply.code(200).send(serializeLabour(existing))
+        }
+      }
+      throw err
+    }
   })
 
   // GET /labour/mine — agent's own submissions

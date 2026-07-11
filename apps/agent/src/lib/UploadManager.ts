@@ -18,7 +18,7 @@ type Listener = (photos: PhotoItem[]) => void
 
 function getAdaptiveMaxWorkers(): number {
   const conn = (navigator as any).connection
-  if (!navigator.onLine) return 0
+  if (!navigator.onLine) return 1
   if (conn?.saveData)    return 1
   switch (conn?.effectiveType) {
     case '2g': return 1

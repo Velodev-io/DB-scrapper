@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import {
@@ -13,6 +13,7 @@ import { useFormPersist } from '../../hooks/useFormPersist'
 import { PhotoUploader } from '../../components/PhotoUploader/PhotoUploader'
 import { LocationPicker } from '../../components/LocationPicker'
 import { uploadManager } from '../../lib/UploadManager'
+import { enqueuePendingRecord, updateRecordId } from '../../lib/uploadQueue'
 
 interface FormState {
   title: string
@@ -28,8 +29,8 @@ interface FormState {
   status: string
   furnishing: string
   description: string
-  lat?: number
-  lng?: number
+  lat: number | undefined
+  lng: number | undefined
 }
 
 const initialForm: FormState = {
@@ -56,6 +57,7 @@ export function PropertyForm() {
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const submittingRef = useRef(false)
 
   const storageKey = `carry:form:property:${user?.id ?? 'guest'}`
   const { form, update, clear } = useFormPersist<FormState>(storageKey, initialForm)
@@ -68,6 +70,7 @@ export function PropertyForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submittingRef.current) return
     setError(null)
 
     if (!form.title || !form.priceInr || !form.locality || !form.city) {
@@ -75,19 +78,83 @@ export function PropertyForm() {
       return
     }
 
+    submittingRef.current = true
     setSubmitting(true)
 
     try {
-      const token = await getToken()
-      if (!token) throw new Error('Not authenticated')
+      const recordId = crypto.randomUUID()
+      const allImageIds = uploadManager.getUploadedIds('images')
+      const allFloorPlanIds = uploadManager.getUploadedIds('floorPlanUrl')
 
-      const images = uploadManager.getUploadedIds('images')
-      const floorPlanUrls = uploadManager.getUploadedIds('floorPlanUrl')
-      const floorPlanUrl = floorPlanUrls[0] || null
+      // Track queued photo localIds so we can link them to the real DB record after POST
+      const queuedImageLocalIds = allImageIds
+        .filter(id => id.startsWith('__queued__:'))
+        .map(id => id.replace('__queued__:', ''))
+      const queuedFloorPlanLocalId = allFloorPlanIds
+        .find(id => id.startsWith('__queued__:'))
+        ?.replace('__queued__:', '') ?? null
 
       const priceVal = parseInt(form.priceInr)
 
+      if (!navigator.onLine) {
+        const tempId = `temp-${recordId}`
+
+        // Remap all queued photo uploads to this temp record ID so the
+        // background flusher knows which record they belong to
+        for (const localId of queuedImageLocalIds) {
+          await updateRecordId(localId, tempId)
+        }
+        if (queuedFloorPlanLocalId) {
+          await updateRecordId(queuedFloorPlanLocalId, tempId)
+        }
+
+        // Store the payload with the bare queued local IDs so the flusher
+        // can resolve them to real Cloudinary public IDs when it runs
+        await enqueuePendingRecord({
+          id: tempId,
+          type: 'property',
+          payload: {
+            id: recordId,
+            title: form.title,
+            propertyType: form.propertyType,
+            listingType: form.listingType,
+            bhk: form.propertyType === 'Plot' || form.propertyType === 'Commercial' ? null : form.bhk,
+            priceInr: priceVal,
+            priceLabel: formatPriceLabel(priceVal),
+            areaSqft: 0,
+            locality: form.locality,
+            city: form.city,
+            address: form.address || null,
+            reraNumber: form.reraNumber || null,
+            status: form.status,
+            furnishing: form.furnishing || null,
+            description: form.description || null,
+            images: queuedImageLocalIds,          // bare UUIDs
+            floorPlanUrl: queuedFloorPlanLocalId, // bare UUID or null
+            lat: form.lat || null,
+            lng: form.lng || null,
+          },
+          createdAt: Date.now(),
+        })
+
+        clear()
+        uploadManager.clear('images')
+        uploadManager.clear('floorPlanUrl')
+        navigate('/properties')
+        return
+      }
+
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+
+      // Only real Cloudinary IDs go to the API — filter out __queued__: placeholders.
+      // Queued uploads will be patched onto the record by flushUploadQueueForeground
+      // once they finish uploading to Cloudinary.
+      const images = allImageIds.filter(id => !id.startsWith('__queued__:'))
+      const floorPlanUrl = allFloorPlanIds.find(id => !id.startsWith('__queued__:')) ?? null
+
       const payload = {
+        id: recordId,
         title: form.title,
         propertyType: form.propertyType,
         listingType: form.listingType,
@@ -108,7 +175,18 @@ export function PropertyForm() {
         lng: form.lng || null,
       }
 
-      await api.post('/properties', payload, token)
+      const newProp = await api.post<{ id: string }>('/properties', payload, token)
+
+      // Link any still-queued photo uploads to the real DB record ID so that
+      // flushUploadQueueForeground can patch them in via PATCH /uploads/patch-queued
+      // once they finish uploading to Cloudinary in the background
+      for (const localId of queuedImageLocalIds) {
+        await updateRecordId(localId, newProp.id)
+      }
+      if (queuedFloorPlanLocalId) {
+        await updateRecordId(queuedFloorPlanLocalId, newProp.id)
+      }
+
       clear()
       uploadManager.clear('images')
       uploadManager.clear('floorPlanUrl')
@@ -116,6 +194,7 @@ export function PropertyForm() {
     } catch (err: any) {
       setError(err.message || 'Failed to submit property')
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }

@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ClerkProvider } from '@clerk/clerk-react'
 import { clerkAppearance } from '@carry/shared'
-import { flushUploadQueueForeground } from './lib/uploadQueue'
+import { flushUploadQueueForeground, flushPendingRecordsForeground } from './lib/uploadQueue'
 
 import './index.css'
 import App from './App'
@@ -21,10 +21,12 @@ if ('serviceWorker' in navigator) {
 // Foreground fallback (critical for iOS PWAs and Capacitor WebViews)
 window.addEventListener('load', () => {
   flushUploadQueueForeground().catch(console.error)
+  flushPendingRecordsForeground().catch(console.error)
 })
 
 window.addEventListener('online', () => {
   flushUploadQueueForeground().catch(console.error)
+  flushPendingRecordsForeground().catch(console.error)
 })
 
 createRoot(document.getElementById('root')!).render(

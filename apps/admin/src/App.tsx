@@ -4,7 +4,7 @@ import { Sidebar } from './components/Sidebar'
 import { Topbar } from './components/Topbar'
 import { Agents } from './pages/Agents'
 import { Properties } from './pages/Properties'
-import { Projects } from './pages/Projects'
+// import { Projects } from './pages/Projects'
 import { Labour } from './pages/Labour'
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
@@ -40,7 +40,7 @@ export default function App() {
                 <Route path="/"           element={<Navigate to="/properties" replace />} />
                 <Route path="/agents"     element={<Agents />} />
                 <Route path="/properties" element={<Properties />} />
-                <Route path="/projects"   element={<Projects />} />
+                {/* <Route path="/projects"   element={<Projects />} /> */}
                 <Route path="/labour"     element={<Labour />} />
               </Routes>
             </main>

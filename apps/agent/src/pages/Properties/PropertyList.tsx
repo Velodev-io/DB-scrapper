@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Property, type Paginated } from '@carry/shared'
+import { getPendingRecords } from '../../lib/uploadQueue'
 
 export function PropertyList() {
   const { getToken } = useAuth()
   const [properties, setProperties] = useState<Property[]>([])
+  const [pendingProps, setPendingProps] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -42,6 +44,31 @@ export function PropertyList() {
     fetchProperties(1, false)
   }, [fetchProperties])
 
+  useEffect(() => {
+    async function loadPending() {
+      try {
+        const records = await getPendingRecords()
+        const props = records
+          .filter(r => r.type === 'property')
+          .map(r => ({
+            id: r.id,
+            title: r.payload.title,
+            propertyType: r.payload.propertyType,
+            listingType: r.payload.listingType,
+            priceLabel: r.payload.priceLabel,
+            locality: r.payload.locality,
+            city: r.payload.city,
+            isPendingSync: true,
+          }))
+        setPendingProps(props)
+      } catch {
+        // Ignore
+      }
+    }
+    loadPending()
+  }, [])
+
+  const allProperties = [...pendingProps, ...properties]
   const hasMore = properties.length < total
 
   return (
@@ -56,9 +83,9 @@ export function PropertyList() {
       {error && <div className="form-error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <div className="list-container">
-        {properties.map(prop => (
+        {allProperties.map(prop => (
           <div key={prop.id} className="record-card">
-            {prop.images && prop.images[0] ? (
+            {prop.images && prop.images[0] && !prop.isPendingSync ? (
               <img
                 src={img.thumb(prop.images[0])}
                 alt={prop.title}
@@ -71,7 +98,14 @@ export function PropertyList() {
               </div>
             )}
             <div className="record-card-body">
-              <div className="record-card-title">{prop.title}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                <div className="record-card-title">{prop.title}</div>
+                {prop.isPendingSync && (
+                  <span className="status-badge queued" style={{ margin: 0, padding: '0.15rem 0.4rem', fontSize: '0.6rem' }}>
+                    Syncing...
+                  </span>
+                )}
+              </div>
               <div className="record-card-meta">
                 <div>{prop.propertyType} • {prop.listingType}</div>
                 <div style={{ color: 'var(--ochre)', fontWeight: 600 }}>{prop.priceLabel}</div>

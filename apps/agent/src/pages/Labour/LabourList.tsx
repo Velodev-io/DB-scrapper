@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Labour, type Paginated } from '@carry/shared'
+import { getPendingRecords } from '../../lib/uploadQueue'
 
 export function LabourList() {
   const { getToken } = useAuth()
   const [labourList, setLabourList] = useState<Labour[]>([])
+  const [pendingLabour, setPendingLabour] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -42,6 +44,33 @@ export function LabourList() {
     fetchLabour(1, false)
   }, [fetchLabour])
 
+  useEffect(() => {
+    async function loadPending() {
+      try {
+        const records = await getPendingRecords()
+        const labs = records
+          .filter(r => r.type === 'labour')
+          .map(r => ({
+            id: r.id,
+            fullName: r.payload.fullName,
+            age: r.payload.age,
+            gender: r.payload.gender,
+            skillLevel: r.payload.skillLevel,
+            skillType: r.payload.skillType,
+            phone: r.payload.phone,
+            locality: r.payload.locality,
+            city: r.payload.city,
+            isPendingSync: true,
+          }))
+        setPendingLabour(labs)
+      } catch {
+        // Ignore
+      }
+    }
+    loadPending()
+  }, [])
+
+  const allLabour = [...pendingLabour, ...labourList]
   const hasMore = labourList.length < total
 
   return (
@@ -56,9 +85,9 @@ export function LabourList() {
       {error && <div className="form-error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <div className="list-container">
-        {labourList.map(lab => (
+        {allLabour.map(lab => (
           <div key={lab.id} className="record-card">
-            {lab.profilePhotoUrl ? (
+            {lab.profilePhotoUrl && !lab.isPendingSync ? (
               <img
                 src={img.thumb(lab.profilePhotoUrl)}
                 alt={lab.fullName}
@@ -71,7 +100,14 @@ export function LabourList() {
               </div>
             )}
             <div className="record-card-body">
-              <div className="record-card-title">{lab.fullName}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                <div className="record-card-title">{lab.fullName}</div>
+                {lab.isPendingSync && (
+                  <span className="status-badge queued" style={{ margin: 0, padding: '0.15rem 0.4rem', fontSize: '0.6rem' }}>
+                    Syncing...
+                  </span>
+                )}
+              </div>
               <div className="record-card-meta">
                 <div>{lab.age} years old • {lab.gender}</div>
                 <div style={{ color: 'var(--ochre)', fontWeight: 600 }}>

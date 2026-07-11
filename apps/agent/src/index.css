@@ -353,13 +353,51 @@ label, .label {
 .record-card-title { font-weight: 600; margin-bottom: 0.25rem; }
 .record-card-meta  { font-family: var(--font-mono); font-size: 0.7rem; color: var(--concrete); }
 
-/* ── Submit Bar (fixed above bottom nav) ────────────────────────── */
+/* ── Submit Bar (flow element at the bottom of form) ────────────── */
 .submit-bar {
-  position: fixed;
-  bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
-  left: 0; right: 0;
-  padding: 0.75rem 1rem;
-  background: var(--bone);
+  margin-top: 2rem;
+  padding: 1.25rem 0 2.5rem;
   border-top: 1px solid var(--sand);
-  z-index: 90;
+  background: transparent;
 }
+
+/* ── Stats Dashboard ────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: var(--white);
+  border: 1px solid var(--sand);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1rem;
+  text-align: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.stat-value {
+  font-family: var(--font-heading);
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--ochre);
+  line-height: 1;
+  margin-bottom: 0.4rem;
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--concrete);
+}
+

@@ -17,6 +17,7 @@ export default async function propertyRoutes(app: FastifyInstance) {
           furnishing: {type:'string'}, description: {type:'string'},
           images: {type:'array', items:{type:'string'}},
           floorPlanUrl: {type:'string'}, lat: {type:'number'}, lng: {type:'number'},
+          id: {type:'string'},
         }
       }
     }
@@ -24,11 +25,26 @@ export default async function propertyRoutes(app: FastifyInstance) {
     const body = request.body as any
     const clerkUserId = (request as any).clerkUserId
     const agentId = await getOrCreateAgent(clerkUserId)
-    const row = await prisma.property.create({
-      data: { ...body, agentId, images: body.images ?? [], reviewStatus: 'pending' },
-      include: { agent: { select: { id: true, name: true, email: true } } },
-    })
-    return reply.code(201).send(serializeProperty(row))
+
+    try {
+      const row = await prisma.property.create({
+        data: { ...body, agentId, images: body.images ?? [], reviewStatus: 'pending' },
+        include: { agent: { select: { id: true, name: true, email: true } } },
+      })
+      return reply.code(201).send(serializeProperty(row))
+    } catch (err: any) {
+      // Prisma unique constraint violation code is P2002
+      if (err.code === 'P2002' && body.id) {
+        const existing = await prisma.property.findUnique({
+          where: { id: body.id },
+          include: { agent: { select: { id: true, name: true, email: true } } },
+        })
+        if (existing) {
+          return reply.code(200).send(serializeProperty(existing))
+        }
+      }
+      throw err
+    }
   })
 
   // GET /properties/mine — agent's own submissions

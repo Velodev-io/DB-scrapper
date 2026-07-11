@@ -10,9 +10,11 @@ import { PropertyList } from './pages/Properties/PropertyList'
 import { LabourForm } from './pages/Labour/LabourForm'
 import { LabourList } from './pages/Labour/LabourList'
 import { Profile } from './pages/Profile'
+import { flushUploadQueueForeground, flushPendingRecordsForeground } from './lib/uploadQueue'
 
 function AgentGuard({ children }: { children: React.ReactNode }) {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const role = user?.publicMetadata?.role as string | undefined
 
   // Auto-reload the Clerk session when no role is present.
@@ -20,9 +22,37 @@ function AgentGuard({ children }: { children: React.ReactNode }) {
   // requiring the user to manually hard-refresh the page.
   useEffect(() => {
     if (!user || role === 'agent' || role === 'admin') return
+
+    // Automatically check with backend if the email has a pending invitation
+    const syncRole = async () => {
+      try {
+        const token = await getToken()
+        if (!token) return
+        const base = import.meta.env.VITE_API_BASE ?? 'http://localhost:4001/api/v1'
+        const res = await fetch(`${base}/agents/sync-role`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.synced) {
+            // Force user session to reload immediately to reflect role update
+            await user.reload()
+          }
+        }
+      } catch (err) {
+        console.error('Failed to auto-sync agent role:', err)
+      }
+    }
+
+    syncRole()
+
     const id = setInterval(() => { user.reload() }, 2000)
     return () => clearInterval(id)
-  }, [user, role])
+  }, [user, role, getToken])
 
   if (!user) return null
 
@@ -47,6 +77,9 @@ export default function App() {
 
   useEffect(() => {
     window.__clerkGetToken = () => getToken()
+    // Trigger offline synchronization now that the Clerk authentication token is set
+    flushUploadQueueForeground().catch(console.error)
+    flushPendingRecordsForeground().catch(console.error)
   }, [getToken])
 
   return (
