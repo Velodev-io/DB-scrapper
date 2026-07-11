@@ -5,8 +5,8 @@ import { BottomNav } from './components/BottomNav'
 import { NetworkBanner } from './components/NetworkBanner'
 import { PropertyForm } from './pages/Properties/PropertyForm'
 import { PropertyList } from './pages/Properties/PropertyList'
-import { ProjectForm } from './pages/Projects/ProjectForm'
-import { ProjectList } from './pages/Projects/ProjectList'
+// import { ProjectForm } from './pages/Projects/ProjectForm'
+// import { ProjectList } from './pages/Projects/ProjectList'
 import { LabourForm } from './pages/Labour/LabourForm'
 import { LabourList } from './pages/Labour/LabourList'
 import { Profile } from './pages/Profile'
@@ -50,8 +50,8 @@ export default function App() {
             <Route path="/"               element={<Navigate to="/properties/new" replace />} />
             <Route path="/properties/new" element={<PropertyForm />} />
             <Route path="/properties"     element={<PropertyList />} />
-            <Route path="/projects/new"   element={<ProjectForm />} />
-            <Route path="/projects"       element={<ProjectList />} />
+            {/* <Route path="/projects/new"   element={<ProjectForm />} /> */}
+            {/* <Route path="/projects"       element={<ProjectList />} /> */}
             <Route path="/labour/new"     element={<LabourForm />} />
             <Route path="/labour"         element={<LabourList />} />
             <Route path="/profile"        element={<Profile />} />
