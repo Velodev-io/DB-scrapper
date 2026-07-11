@@ -54,7 +54,7 @@ export default async function webhookRoutes(app: FastifyInstance) {
 
       if (emails.length > 0) {
         try {
-          const { data: invitations } = await clerk.invitations.getInvitationList({ status: 'pending' })
+          const { data: invitations } = await clerk.invitations.getInvitationList({ limit: 500 })
           const matchingInvite = invitations.find(
             (inv: any) => emails.includes(inv.emailAddress) && inv.publicMetadata?.role === 'agent'
           )
@@ -65,10 +65,12 @@ export default async function webhookRoutes(app: FastifyInstance) {
               publicMetadata: { role: 'agent' }
             })
 
-            try {
-              await clerk.invitations.revokeInvitation(matchingInvite.id)
-            } catch (revokeErr) {
-              app.log.warn({ err: revokeErr }, `Failed to revoke invitation ${matchingInvite.id}`)
+            if (matchingInvite.status === 'pending') {
+              try {
+                await clerk.invitations.revokeInvitation(matchingInvite.id)
+              } catch (revokeErr) {
+                app.log.warn({ err: revokeErr }, `Failed to revoke invitation ${matchingInvite.id}`)
+              }
             }
           }
         } catch (err) {

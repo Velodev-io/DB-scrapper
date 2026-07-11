@@ -125,23 +125,25 @@ export default async function agentRoutes(app: FastifyInstance) {
       if (emails.length === 0) {
         return reply.code(400).send({ error: 'User has no email addresses' })
       }
-
-      // Check if there's a pending invitation for any of the user's email addresses
-      const { data: invitations } = await clerk.invitations.getInvitationList({ status: 'pending' })
+      // Check if there's any invitation (pending or accepted) for any of the user's email addresses
+      const { data: invitations } = await clerk.invitations.getInvitationList({ limit: 500 })
       const matchingInvite = invitations.find(
         (inv: any) => emails.includes(inv.emailAddress) && inv.publicMetadata?.role === 'agent'
       )
+
       if (matchingInvite) {
         // Set the role metadata on the user
         await clerk.users.updateUserMetadata(clerkUserId, {
           publicMetadata: { role: 'agent' }
         })
 
-        // Clean up the invitation by revoking it
-        try {
-          await clerk.invitations.revokeInvitation(matchingInvite.id)
-        } catch (revokeErr) {
-          app.log.warn({ err: revokeErr }, `Failed to revoke invitation ${matchingInvite.id}`)
+        // Clean up the invitation by revoking it if it is pending
+        if (matchingInvite.status === 'pending') {
+          try {
+            await clerk.invitations.revokeInvitation(matchingInvite.id)
+          } catch (revokeErr) {
+            app.log.warn({ err: revokeErr }, `Failed to revoke invitation ${matchingInvite.id}`)
+          }
         }
 
         return { synced: true, role: 'agent' }
