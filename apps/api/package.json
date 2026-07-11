@@ -20,7 +20,8 @@
     "@fastify/swagger-ui": "^5.2.0",
     "@prisma/client": "^6.0.0",
     "@sentry/node": "^8.0.0",
-    "fastify": "^5.2.0"
+    "fastify": "^5.2.0",
+    "svix": "^1.96.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

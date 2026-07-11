@@ -11,6 +11,7 @@ import projectRoutes from './routes/projects.js'
 import labourRoutes from './routes/labour.js'
 import agentRoutes from './routes/agents.js'
 import uploadsRoutes from './routes/uploads.js'
+import webhookRoutes from './routes/webhooks.js'
 
 const PORT = Number(process.env.PORT ?? 4001)
 const CORS_ORIGIN = (process.env.CORS_ORIGIN ?? 'http://localhost:5181,http://localhost:5182,capacitor://localhost,http://localhost')
@@ -110,6 +111,7 @@ export async function buildApp() {
     await api.register(labourRoutes)
     await api.register(agentRoutes)
     await api.register(uploadsRoutes)
+    await api.register(webhookRoutes)
   }, { prefix: '/api/v1' })
 
   // ── Global error handler with Sentry ────────────────────────────────
