@@ -1,1 +1,1 @@
-{"root":["./src/main.tsx"],"version":"5.9.3"}
+{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/components/photouploader/photocard.tsx","./src/components/photouploader/photouploader.tsx","./src/components/photouploader/statusbar.tsx","./src/hooks/usephotoupload.ts","./src/lib/uploadmanager.ts","./src/lib/compress.ts","./src/lib/uploadqueue.ts"],"version":"5.9.3"}

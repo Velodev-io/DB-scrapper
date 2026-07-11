@@ -1,0 +1,211 @@
+.photo-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  font-family: inherit;
+}
+
+.upload-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  align-items: center;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+.status-badge.uploading {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.status-badge.queued {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.status-badge.failed {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  cursor: pointer;
+}
+
+.status-badge.total {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  margin-left: auto;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.875rem;
+  width: 100%;
+}
+
+.photo-card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #1e1e24;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.photo-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.photo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.overlay-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.375rem;
+}
+
+.progress-ring {
+  width: 32px;
+  height: 32px;
+}
+
+.overlay-pct {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #b87333;
+  margin-top: 0.25rem;
+}
+
+.photo-overlay.queued {
+  background: rgba(15, 23, 42, 0.75);
+}
+
+.photo-overlay.done {
+  background: rgba(16, 185, 129, 0.2);
+  pointer-events: none;
+}
+
+.check-icon {
+  width: 24px;
+  height: 24px;
+  background: #10b981;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.photo-overlay.failed {
+  border: none;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s ease;
+}
+
+.photo-overlay.failed:hover {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+.remove-btn {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  z-index: 10;
+}
+
+.remove-btn:hover {
+  background: #ef4444;
+  transform: scale(1.1);
+}
+
+.add-photo-btn {
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-photo-btn:hover {
+  border-color: #b87333;
+  color: #ffffff;
+  background: rgba(184, 115, 51, 0.05);
+}
+
+.add-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.add-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.photo-limit-msg {
+  font-size: 0.75rem;
+  color: rgba(239, 68, 68, 0.8);
+  margin: 0;
+  text-align: right;
+}
