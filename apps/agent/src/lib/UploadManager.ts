@@ -5,6 +5,7 @@ export type PhotoStatus = 'waiting' | 'compressing' | 'uploading' | 'done' | 'qu
 
 export interface PhotoItem {
   id:            string
+  scope:         string
   file:          File
   preview:       string       // object URL — instant thumbnail
   status:        PhotoStatus
@@ -29,85 +30,139 @@ function getAdaptiveMaxWorkers(): number {
 class UploadManager {
   private queue:         PhotoItem[] = []
   private activeWorkers: number      = 0
-  private listeners:     Listener[]  = []
+  private listeners:     Record<string, Listener[]> = {}
 
-  subscribe(fn: Listener) {
-    this.listeners.push(fn)
-    return () => { this.listeners = this.listeners.filter(l => l !== fn) }
+  subscribe(scope: string, fn: Listener) {
+    if (!this.listeners[scope]) {
+      this.listeners[scope] = []
+    }
+    this.listeners[scope].push(fn)
+    // Emit initial state
+    fn(this.queue.filter(p => p.scope === scope))
+    return () => {
+      this.listeners[scope] = (this.listeners[scope] || []).filter(l => l !== fn)
+    }
   }
 
-  private emit() {
-    const snapshot = [...this.queue]
-    this.listeners.forEach(fn => fn(snapshot))
+  private emit(scope: string) {
+    const snapshot = this.queue.filter(p => p.scope === scope)
+    const list = this.listeners[scope] || []
+    list.forEach(fn => fn(snapshot))
   }
 
-  addPhotos(files: File[]) {
+  addPhotos(files: File[], scope: string) {
     const newItems: PhotoItem[] = files.map(file => ({
       id:      crypto.randomUUID(),
+      scope,
       file,
       preview: URL.createObjectURL(file),
       status:  'waiting',
       progress: 0,
     }))
     this.queue.push(...newItems)
-    this.emit()
-    newItems.forEach(() => this.tryStartWorker())
+    this.emit(scope)
+    newItems.forEach(() => this.tryStartWorker(scope))
   }
 
-  removePhoto(id: string) {
+  removePhoto(id: string, scope: string) {
     const item = this.queue.find(p => p.id === id)
     if (item?.preview) URL.revokeObjectURL(item.preview)
     this.queue = this.queue.filter(p => p.id !== id)
-    this.emit()
+    this.emit(scope)
   }
 
-  retry(id: string) {
-    this.updatePhoto(id, { status: 'waiting', progress: 0, error: undefined })
-    this.tryStartWorker()
+  retry(id: string, scope: string) {
+    this.updatePhoto(id, { status: 'waiting', progress: 0, error: undefined }, scope)
+    this.tryStartWorker(scope)
   }
 
-  getPhotos()       { return [...this.queue] }
-  getUploadedIds()  { return this.queue.filter(p => p.status === 'done' || p.status === 'queued').map(p => p.cloudinaryId ?? `__queued__:${p.id}`) }
-  hasAllSettled()   { return this.queue.every(p => ['done','queued','failed'].includes(p.status)) }
+  getPhotos(scope: string)       { return this.queue.filter(p => p.scope === scope) }
+  
+  getUploadedIds(scope: string)  { 
+    return this.queue
+      .filter(p => p.scope === scope && (p.status === 'done' || p.status === 'queued'))
+      .map(p => p.cloudinaryId ?? `__queued__:${p.id}`) 
+  }
+  
+  hasAllSettled(scope: string)   { 
+    return this.queue
+      .filter(p => p.scope === scope)
+      .every(p => ['done','queued','failed'].includes(p.status)) 
+  }
 
-  private tryStartWorker() {
+  clear(scope: string) {
+    const items = this.queue.filter(p => p.scope === scope)
+    items.forEach(p => {
+      if (p.preview) URL.revokeObjectURL(p.preview)
+    })
+    this.queue = this.queue.filter(p => p.scope !== scope)
+    this.emit(scope)
+  }
+
+  private tryStartWorker(scope: string) {
     const max  = getAdaptiveMaxWorkers()
     if (this.activeWorkers >= max) return
-    const next = this.queue.find(p => p.status === 'waiting')
+    const next = this.queue.find(p => p.scope === scope && p.status === 'waiting')
     if (!next) return
     this.activeWorkers++
     this.processItem(next).finally(() => {
       this.activeWorkers--
-      this.tryStartWorker()
+      this.tryStartWorker(scope)
     })
   }
 
   private async processItem(item: PhotoItem) {
     try {
-      this.updatePhoto(item.id, { status: 'compressing', progress: 0 })
+      this.updatePhoto(item.id, { status: 'compressing', progress: 0 }, item.scope)
       const blob = await compressImage(item.file)
-      this.updatePhoto(item.id, { progress: 10 })
+      this.updatePhoto(item.id, { progress: 10 }, item.scope)
+
+      let model: 'property' | 'project' | 'labour' = 'property'
+      let fieldName = 'images'
+      let folder = 'properties'
+
+      if (item.scope === 'floorPlanUrl') {
+        model = 'property'
+        fieldName = 'floorPlanUrl'
+        folder = 'properties'
+      } else if (item.scope === 'beforeImages') {
+        model = 'project'
+        fieldName = 'beforeImages'
+        folder = 'projects'
+      } else if (item.scope === 'afterImages') {
+        model = 'project'
+        fieldName = 'afterImages'
+        folder = 'projects'
+      } else if (item.scope === 'stageImages') {
+        model = 'project'
+        fieldName = 'stageImages'
+        folder = 'projects'
+      } else if (item.scope === 'profilePhotoUrl') {
+        model = 'labour'
+        fieldName = 'profilePhotoUrl'
+        folder = 'labour'
+      }
 
       if (!navigator.onLine) {
         await enqueuePendingUpload({
-          localId: item.id, model: 'property', recordId: '__pending__',
-          fieldName: 'images', blob, fileName: item.file.name,
-          folder: 'properties', createdAt: Date.now(), attempts: 0,
+          localId: item.id, model, recordId: '__pending__',
+          fieldName, blob, fileName: item.file.name,
+          folder, createdAt: Date.now(), attempts: 0,
         })
-        this.updatePhoto(item.id, { status: 'queued', progress: 100 })
+        this.updatePhoto(item.id, { status: 'queued', progress: 100 }, item.scope)
         const reg = await navigator.serviceWorker?.ready
         await (reg as any)?.sync?.register('upload-queue')
         return
       }
 
-      this.updatePhoto(item.id, { status: 'uploading', progress: 10 })
-      const publicId = await this.doCloudinaryUpload(blob, item.file.name, item.id, (pct) => {
-        this.updatePhoto(item.id, { progress: 10 + pct * 0.9 })
+      this.updatePhoto(item.id, { status: 'uploading', progress: 10 }, item.scope)
+      const publicId = await this.doCloudinaryUpload(blob, item.file.name, item.id, folder, (pct) => {
+        this.updatePhoto(item.id, { progress: 10 + pct * 0.9 }, item.scope)
       })
-      this.updatePhoto(item.id, { status: 'done', progress: 100, cloudinaryId: publicId })
+      this.updatePhoto(item.id, { status: 'done', progress: 100, cloudinaryId: publicId }, item.scope)
 
     } catch (err) {
-      this.updatePhoto(item.id, { status: 'failed', error: 'Upload failed. Tap to retry.' })
+      this.updatePhoto(item.id, { status: 'failed', error: 'Upload failed. Tap to retry.' }, item.scope)
     }
   }
 
@@ -115,11 +170,12 @@ class UploadManager {
     blob: Blob,
     fileName: string,
     _localId: string,
+    folder: string,
     onProgress: (pct: number) => void
   ): Promise<string> {
     const base = import.meta.env.VITE_API_BASE
-    const { signature, timestamp, apiKey, cloudName, folder, maxBytes } =
-      await fetch(`${base}/uploads/sign?folder=properties`, {
+    const { signature, timestamp, apiKey, cloudName, folder: returnedFolder, maxBytes } =
+      await fetch(`${base}/uploads/sign?folder=${folder}`, {
         headers: { Authorization: `Bearer ${await window.__clerkGetToken?.()}` }
       }).then(r => r.json())
 
@@ -128,7 +184,7 @@ class UploadManager {
     form.append('signature', signature)
     form.append('timestamp', String(timestamp))
     form.append('api_key', apiKey)
-    form.append('folder', folder)
+    form.append('folder', returnedFolder)
     if (maxBytes) {
       form.append('max_bytes', String(maxBytes))
     }
@@ -141,7 +197,7 @@ class UploadManager {
       xhr.onload = () => {
         if (xhr.status === 200) {
           const res = JSON.parse(xhr.responseText)
-          resolve(res.public_id)   // store public_id, not secure_url
+          resolve(res.public_id)
         } else {
           reject(new Error(xhr.responseText))
         }
@@ -152,13 +208,12 @@ class UploadManager {
     })
   }
 
-  private updatePhoto(id: string, patch: Partial<PhotoItem>) {
+  private updatePhoto(id: string, patch: Partial<PhotoItem>, scope: string) {
     this.queue = this.queue.map(p => p.id === id ? { ...p, ...patch } : p)
-    this.emit()
+    this.emit(scope)
   }
 }
 
 export const uploadManager = new UploadManager()
 
-// Expose token getter for XHR calls (set in main.tsx after Clerk loads)
 declare global { interface Window { __clerkGetToken?: () => Promise<string | null> } }

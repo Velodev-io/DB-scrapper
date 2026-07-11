@@ -8,10 +8,11 @@ interface Props {
   folder?: 'properties' | 'projects' | 'labour'
   label?: string
   maxPhotos?: number   // undefined = unlimited
+  scope?: string
 }
 
-export function PhotoUploader({ label = 'Add Photos', maxPhotos }: Props) {
-  const { photos, addPhotos, removePhoto, retryPhoto, stats } = usePhotoUpload()
+export function PhotoUploader({ label = 'Add Photos', maxPhotos, scope = 'default' }: Props) {
+  const { photos, addPhotos, removePhoto, retryPhoto, stats } = usePhotoUpload(scope)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {

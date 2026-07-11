@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { uploadManager, type PhotoItem } from '../lib/UploadManager'
 
-export function usePhotoUpload() {
+export function usePhotoUpload(scope: string = 'default') {
   const [photos, setPhotos] = useState<PhotoItem[]>([])
 
   useEffect(() => {
-    return uploadManager.subscribe(setPhotos)
-  }, [])
+    return uploadManager.subscribe(scope, setPhotos)
+  }, [scope])
 
   const stats = {
     total:      photos.length,
@@ -19,10 +19,10 @@ export function usePhotoUpload() {
 
   return {
     photos,
-    addPhotos:   (files: File[]) => uploadManager.addPhotos(files),
-    removePhoto: (id: string)    => uploadManager.removePhoto(id),
-    retryPhoto:  (id: string)    => uploadManager.retry(id),
-    getUploadedIds: ()           => uploadManager.getUploadedIds(),
+    addPhotos:   (files: File[]) => uploadManager.addPhotos(files, scope),
+    removePhoto: (id: string)    => uploadManager.removePhoto(id, scope),
+    retryPhoto:  (id: string)    => uploadManager.retry(id, scope),
+    getUploadedIds: ()           => uploadManager.getUploadedIds(scope),
     stats,
   }
 }
