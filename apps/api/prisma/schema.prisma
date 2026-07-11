@@ -1,0 +1,131 @@
+// Carry Construction — Field Ops Data Models
+// Provider: PostgreSQL (Neon free tier in prod, same for dev via Neon branch)
+// To run migrations: npm run db:migrate (from repo root)
+// To explore data:   npm run db:studio  (from repo root)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Agent ──────────────────────────────────────────────────────────────
+// Created automatically on first sign-in via Clerk webhook,
+// or manually via the admin "invite agent" flow.
+
+model Agent {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  name        String
+  email       String   @unique
+  status      String   @default("active") // "active" | "revoked"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  properties Property[]
+  projects   ConstructionProject[]
+  labour     Labour[]
+
+  @@index([clerkUserId])
+  @@map("agents")
+}
+
+// ── Property ───────────────────────────────────────────────────────────
+
+model Property {
+  id           String   @id @default(cuid())
+  title        String
+  propertyType String // "Apartment" | "Villa" | "Plot" | "Commercial"
+  listingType  String // "Sale" | "Resale" | "Under Construction"
+  bhk          Int?
+  priceInr     Int
+  priceLabel   String // pre-formatted "₹1.35 Cr"
+  areaSqft     Int
+  locality     String
+  city         String
+  address      String?
+  reraNumber   String?
+  status       String // "Ready" | "Under Construction"
+  furnishing   String? // "Unfurnished" | "Semi-Furnished" | "Furnished"
+  description  String?
+  images       String[] @default([]) // Cloudinary public IDs (Postgres native array)
+  floorPlanUrl String? // single Cloudinary public ID
+  lat          Float?
+  lng          Float?
+  reviewStatus String   @default("pending") // "pending" | "reviewed" | "deleted"
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([reviewStatus])
+  @@index([city, listingType, propertyType])
+  @@map("properties")
+}
+
+// ── ConstructionProject ────────────────────────────────────────────────
+
+model ConstructionProject {
+  id             String   @id @default(cuid())
+  title          String
+  category       String // "Turnkey Villa" | "Renovation" | "Interior" | "Commercial Build"
+  location       String
+  areaSqft       Int?
+  durationMonths Int?
+  packageTier    String? // "Basic" | "Premium" | "Luxury"
+  description    String?
+  beforeImages   String[] @default([]) // Cloudinary public IDs
+  afterImages    String[] @default([])
+  stageImages    String[] @default([])
+  reviewStatus   String   @default("pending")
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([reviewStatus])
+  @@index([category])
+  @@map("construction_projects")
+}
+
+// ── Labour ─────────────────────────────────────────────────────────────
+
+model Labour {
+  id              String  @id @default(cuid())
+  fullName        String
+  age             Int
+  gender          String // "Male" | "Female" | "Other"
+  skillLevel      String // "Skilled" | "Non-Skilled"
+  skillType       String? // only if Skilled — from SKILL_TYPES list
+  phone           String
+  profilePhotoUrl String? // single Cloudinary public ID
+
+  // Availability address
+  houseNo  String?
+  street   String?
+  locality String?
+  city     String?
+  pincode  String?
+
+  reviewStatus String @default("pending")
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([reviewStatus])
+  @@index([city, skillLevel])
+  @@map("labour")
+}

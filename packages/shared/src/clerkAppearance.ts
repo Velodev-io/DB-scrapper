@@ -1,4 +1,4 @@
-import type { Appearance } from '@clerk/clerk-react'
+import type { Appearance } from '@clerk/types'
 
 // Matches Carry Construction brand colours and fonts.
 // Used in ClerkProvider appearance prop in both apps.

@@ -34,7 +34,7 @@ async function request<T>(
     clearTimeout(timerId)
 
     if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: res.statusText }))
+      const body = (await res.json().catch(() => ({ error: res.statusText }))) as any
       throw new ApiError(body.error ?? 'Request failed', res.status)
     }
 
