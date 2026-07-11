@@ -280,8 +280,65 @@ export async function updateRecordId(localId: string, recordId: string) {
     await db.put('pending', { ...item, recordId })
   }
 }
-```
 
+// Foreground queue flusher (essential fallback for iOS PWAs and Capacitor WebViews)
+let isFlushing = false
+export async function flushUploadQueueForeground() {
+  if (isFlushing || !navigator.onLine) return
+  isFlushing = true
+
+  try {
+    const pending = await getPendingUploads()
+    if (pending.length === 0) return
+
+    const base = import.meta.env.VITE_API_BASE ?? 'http://localhost:4001/api/v1'
+    const token = await window.__clerkGetToken?.()
+    if (!token) return  // Wait for authentication token
+
+    for (const item of pending) {
+      if (item.attempts >= 5 || !item.id) continue
+      try {
+        // 1. Get signed Cloudinary credentials
+        const sigRes = await fetch(`${base}/uploads/sign?folder=${item.folder}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (!sigRes.ok) { await incrementAttempts(item.id); continue }
+        const { signature, timestamp, apiKey, cloudName, folder } = await sigRes.json()
+
+        // 2. Upload to Cloudinary
+        const form = new FormData()
+        form.append('file', item.blob, item.fileName)
+        form.append('signature', signature)
+        form.append('timestamp', String(timestamp))
+        form.append('api_key', apiKey)
+        form.append('folder', folder)
+
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: 'POST', body: form
+        })
+        if (!uploadRes.ok) { await incrementAttempts(item.id); continue }
+        const { public_id: publicId } = await uploadRes.json()
+
+        // 3. Patch the DB record
+        if (item.recordId !== '__pending__') {
+          const patchRes = await fetch(`${base}/uploads/patch-queued`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ model: item.model, recordId: item.recordId, fieldName: item.fieldName, publicId }),
+          })
+          if (!patchRes.ok) { await incrementAttempts(item.id); continue }
+        }
+
+        await removePendingUpload(item.id)
+      } catch (err) {
+        await incrementAttempts(item.id)
+      }
+    }
+  } finally {
+    isFlushing = false
+  }
+}
+```
 ---
 
 ## Phase 3, File 03: sw.js (Service Worker)
@@ -363,13 +420,25 @@ async function getStoredToken() {
 }
 ```
 
-Register the SW in `apps/agent/src/main.tsx`:
+Register the SW and foreground flush sync listeners in `apps/agent/src/main.tsx`:
 ```typescript
+import { flushUploadQueueForeground } from './lib/uploadQueue.js'
+
+// Register Service Worker for background sync (standard Web)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(console.error)
   })
 }
+
+// Foreground fallback (critical for iOS PWAs and Capacitor WebViews)
+window.addEventListener('load', () => {
+  flushUploadQueueForeground().catch(console.error)
+})
+
+window.addEventListener('online', () => {
+  flushUploadQueueForeground().catch(console.error)
+})
 ```
 
 ---

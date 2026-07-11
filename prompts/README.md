@@ -93,6 +93,7 @@ Phase 6 — Deployment
     04_github_ci.md             ← GitHub Actions for auto-deploy on push
     05_sentry_setup.md          ← Sentry error monitoring (API + both apps)
     06_concurrency_checklist.md ← 50-agent load readiness checklist
+    07_mobile_packaging.md      ← Mobile APK & iOS Packaging (Capacitor)
 ```
 
 ---

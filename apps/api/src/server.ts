@@ -1,15 +1,147 @@
 import Fastify from 'fastify'
+import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
+import * as Sentry from '@sentry/node'
+
+import healthRoutes from './routes/health.js'
+import propertyRoutes from './routes/properties.js'
+import projectRoutes from './routes/projects.js'
+import labourRoutes from './routes/labour.js'
+import agentRoutes from './routes/agents.js'
+import uploadsRoutes from './routes/uploads.js'
 
 const PORT = Number(process.env.PORT ?? 4001)
+const CORS_ORIGIN = (process.env.CORS_ORIGIN ?? 'http://localhost:5181,http://localhost:5182,capacitor://localhost,http://localhost')
+  .split(',')
+  .map(s => s.trim())
 
-async function main() {
-  const app = Fastify({ logger: true })
-
-  app.get('/health', async () => ({ ok: true, service: 'carry-api', port: PORT }))
-
-  await app.listen({ port: PORT, host: '0.0.0.0' })
-  app.log.info(`API running at http://localhost:${PORT}`)
-  app.log.info(`Swagger UI at http://localhost:${PORT}/api/docs`)
+// ── Sentry (error tracking) ──────────────────────────────────────────
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV ?? 'development',
+    tracesSampleRate: 0.2,  // 20% of requests traced (keeps free tier usage low)
+  })
 }
 
-main().catch(err => { console.error(err); process.exit(1) })
+export async function buildApp() {
+  const app = Fastify({
+    logger: {
+      level: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
+    },
+    requestTimeout: 30_000,  // 30s — protects against hanging Clerk/Cloudinary calls
+  })
+
+  // ── CORS ────────────────────────────────────────────────────────────
+  await app.register(cors, {
+    origin: CORS_ORIGIN,
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  })
+
+  // ── Rate Limiting ────────────────────────────────────────────────────
+  // 120 requests/minute per IP — protects against accidental form storms from 50 agents
+  await app.register(rateLimit, {
+    max: 120,
+    timeWindow: '1 minute',
+    errorResponseBuilder: () => ({
+      error: 'Too many requests — slow down and try again in a minute',
+      statusCode: 429,
+    }),
+  })
+
+  // ── Swagger / OpenAPI ────────────────────────────────────────────────
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title:       'Carry Construction — Field Ops API',
+        description: 'Internal API for field agents. All routes require a Clerk JWT Bearer token.',
+        version:     '1.0.0',
+        contact: {
+          name: 'Carry Construction Dev',
+        },
+      },
+      servers: [
+        { url: `http://localhost:${PORT}`, description: 'Local development' },
+        { url: 'https://carry-api.vercel.app', description: 'Production (Vercel)' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type:        'http',
+            scheme:      'bearer',
+            bearerFormat: 'Clerk JWT',
+            description: 'Obtain from Clerk useAuth().getToken() in the frontend apps',
+          },
+        },
+      },
+      tags: [
+        { name: 'System',     description: 'Health and utility endpoints' },
+        { name: 'Properties', description: 'Property data collection' },
+        { name: 'Projects',   description: 'Construction project data collection' },
+        { name: 'Labour',     description: 'Labour worker profiles' },
+        { name: 'Agents',     description: 'Agent user management (admin only)' },
+        { name: 'Uploads',    description: 'Cloudinary signed upload management' },
+      ],
+    },
+  })
+
+  await app.register(swaggerUi, {
+    routePrefix: '/api/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking:  true,
+      tryItOutEnabled: true,
+    },
+    theme: {
+      title: 'Carry Field Ops API',
+    },
+  })
+
+  // ── Health (no prefix) ───────────────────────────────────────────────
+  await app.register(healthRoutes)
+
+  // ── All API routes under /api/v1 ─────────────────────────────────────
+  await app.register(async (api) => {
+    await api.register(propertyRoutes)
+    await api.register(projectRoutes)
+    await api.register(labourRoutes)
+    await api.register(agentRoutes)
+    await api.register(uploadsRoutes)
+  }, { prefix: '/api/v1' })
+
+  // ── Global error handler with Sentry ────────────────────────────────
+  app.setErrorHandler((error: any, request, reply) => {
+    if (process.env.SENTRY_DSN) {
+      Sentry.captureException(error)
+    }
+    app.log.error(error)
+
+    const statusCode = error.statusCode ?? 500
+    reply.code(statusCode).send({
+      error:      statusCode >= 500 ? 'Internal server error' : error.message,
+      statusCode,
+    })
+  })
+
+  return app
+}
+
+// ── Entry point ─────────────────────────────────────────────────────────
+async function main() {
+  const app = await buildApp()
+  await app.listen({ port: PORT, host: '0.0.0.0' })
+  app.log.info(`✓ API           → http://localhost:${PORT}/api/v1`)
+  app.log.info(`✓ Swagger UI    → http://localhost:${PORT}/api/docs`)
+  app.log.info(`✓ Health check  → http://localhost:${PORT}/health`)
+}
+
+// Only run the HTTP server when NOT deployed on Vercel
+if (process.env.VERCEL !== '1') {
+  main().catch(err => {
+    console.error(err)
+    process.exit(1)
+  })
+}

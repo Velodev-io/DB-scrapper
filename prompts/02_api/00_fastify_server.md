@@ -34,7 +34,7 @@ import agentRoutes from './routes/agents.js'
 import uploadsRoutes from './routes/uploads.js'
 
 const PORT = Number(process.env.PORT ?? 4001)
-const CORS_ORIGIN = (process.env.CORS_ORIGIN ?? 'http://localhost:5181,http://localhost:5182')
+const CORS_ORIGIN = (process.env.CORS_ORIGIN ?? 'http://localhost:5181,http://localhost:5182,capacitor://localhost,http://localhost')
   .split(',')
   .map(s => s.trim())
 
