@@ -60,7 +60,11 @@ export function Agents() {
     }
   }
 
-  useEffect(() => { fetchAgents() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    fetchAgents()
+    const timer = setInterval(fetchAgents, 5000) // ponytail: simple polling, websocket if scalability matters
+    return () => clearInterval(timer)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
