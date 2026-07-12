@@ -20,6 +20,7 @@ interface FormState {
   skillType: string
   otherSkillType: string  // free-text when skillType === 'Other'
   phone: string
+  minimumWage: string
   houseNo: string
   street: string
   locality: string
@@ -35,6 +36,7 @@ const initialForm: FormState = {
   skillType: 'Mason / Bricklayer',
   otherSkillType: '',
   phone: '',
+  minimumWage: '',
   houseNo: '',
   street: '',
   locality: '',
@@ -94,6 +96,8 @@ export function LabourForm() {
               : form.skillType)
           : null
 
+        const minimumWageVal = form.minimumWage ? parseInt(form.minimumWage, 10) : null
+
         await enqueuePendingRecord({
           id: tempId,
           type: 'labour',
@@ -106,6 +110,7 @@ export function LabourForm() {
             skillType: resolvedSkillType,
             phone: form.phone,
             profilePhotoUrl: queuedPhotoLocalId, // bare UUID
+            minimumWage: minimumWageVal,
             houseNo: form.houseNo || null,
             street: form.street || null,
             locality: form.locality || null,
@@ -133,6 +138,8 @@ export function LabourForm() {
             : form.skillType)
         : null
 
+      const minimumWageVal = form.minimumWage ? parseInt(form.minimumWage, 10) : null
+
       const payload = {
         id: recordId,
         fullName: form.fullName,
@@ -142,6 +149,7 @@ export function LabourForm() {
         skillType: resolvedSkillType,
         phone: form.phone,
         profilePhotoUrl,
+        minimumWage: minimumWageVal,
         houseNo: form.houseNo || null,
         street: form.street || null,
         locality: form.locality || null,
@@ -279,6 +287,17 @@ export function LabourForm() {
             value={form.phone}
             onChange={(e) => update({ phone: e.target.value })}
             placeholder="e.g. +91 9876543210"
+          />
+        </div>
+
+        <div className="form-field">
+          <label className="label">Minimum Wage (per day, INR)</label>
+          <input
+            type="number"
+            className="form-input"
+            value={form.minimumWage}
+            onChange={(e) => update({ minimumWage: e.target.value })}
+            placeholder="e.g. 500"
           />
         </div>
 

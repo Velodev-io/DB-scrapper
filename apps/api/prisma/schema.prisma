@@ -129,6 +129,7 @@ model Labour {
   skillType       String? // only if Skilled — from SKILL_TYPES list
   phone           String
   profilePhotoUrl String? // single Cloudinary public ID
+  minimumWage     Int?    // minimum wage per day in INR
 
   // Availability address
   houseNo  String?

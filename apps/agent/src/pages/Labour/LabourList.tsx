@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Labour, type Paginated } from '@carry/shared'
@@ -8,6 +8,7 @@ import { LabourDetailModal } from './LabourDetailModal'
 export function LabourList() {
   const navigate = useNavigate()
   const { getToken } = useAuth()
+  const getTokenRef = useRef(getToken)
   const [labourList, setLabourList] = useState<Labour[]>([])
   const [pendingLabour, setPendingLabour] = useState<any[]>([])
   const [total, setTotal] = useState(0)
@@ -17,11 +18,15 @@ export function LabourList() {
   const [selectedLabour, setSelectedLabour] = useState<Labour | null>(null)
   const limit = 10
 
+  useEffect(() => {
+    getTokenRef.current = getToken
+  }, [getToken])
+
   const fetchLabour = useCallback(async (pageNum: number, append: boolean) => {
     setLoading(true)
     setError(null)
     try {
-      const token = await getToken()
+      const token = await getTokenRef.current()
       if (!token) throw new Error('Not authenticated')
 
       const res = await api.get<Paginated<Labour>>(
@@ -41,7 +46,7 @@ export function LabourList() {
     } finally {
       setLoading(false)
     }
-  }, [getToken])
+  }, [])
 
   useEffect(() => {
     fetchLabour(1, false)
@@ -61,6 +66,7 @@ export function LabourList() {
             skillLevel: r.payload.skillLevel,
             skillType: r.payload.skillType,
             phone: r.payload.phone,
+            minimumWage: r.payload.minimumWage,
             locality: r.payload.locality,
             city: r.payload.city,
             isPendingSync: true,

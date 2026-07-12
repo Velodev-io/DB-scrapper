@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Shop, type Paginated } from '@carry/shared'
@@ -8,6 +8,7 @@ import { ShopDetailModal } from './ShopDetailModal'
 export function ShopList() {
   const navigate = useNavigate()
   const { getToken } = useAuth()
+  const getTokenRef = useRef(getToken)
   const [shopList, setShopList] = useState<Shop[]>([])
   const [pendingShops, setPendingShops] = useState<any[]>([])
   const [total, setTotal] = useState(0)
@@ -17,11 +18,15 @@ export function ShopList() {
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
   const limit = 10
 
+  useEffect(() => {
+    getTokenRef.current = getToken
+  }, [getToken])
+
   const fetchShops = useCallback(async (pageNum: number, append: boolean) => {
     setLoading(true)
     setError(null)
     try {
-      const token = await getToken()
+      const token = await getTokenRef.current()
       if (!token) throw new Error('Not authenticated')
 
       const res = await api.get<Paginated<Shop>>(
@@ -41,7 +46,7 @@ export function ShopList() {
     } finally {
       setLoading(false)
     }
-  }, [getToken])
+  }, [])
 
   useEffect(() => {
     fetchShops(1, false)

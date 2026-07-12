@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Property, type Paginated } from '@carry/shared'
@@ -8,6 +8,7 @@ import { PropertyDetailModal } from './PropertyDetailModal'
 export function PropertyList() {
   const navigate = useNavigate()
   const { getToken } = useAuth()
+  const getTokenRef = useRef(getToken)
   const [properties, setProperties] = useState<Property[]>([])
   const [pendingProps, setPendingProps] = useState<any[]>([])
   const [total, setTotal] = useState(0)
@@ -17,11 +18,15 @@ export function PropertyList() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const limit = 10
 
+  useEffect(() => {
+    getTokenRef.current = getToken
+  }, [getToken])
+
   const fetchProperties = useCallback(async (pageNum: number, append: boolean) => {
     setLoading(true)
     setError(null)
     try {
-      const token = await getToken()
+      const token = await getTokenRef.current()
       if (!token) throw new Error('Not authenticated')
 
       const res = await api.get<Paginated<Property>>(
@@ -41,7 +46,7 @@ export function PropertyList() {
     } finally {
       setLoading(false)
     }
-  }, [getToken])
+  }, [])
 
   useEffect(() => {
     fetchProperties(1, false)

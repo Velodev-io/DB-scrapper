@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type ConstructionProject, type Paginated } from '@carry/shared'
 
 export function ProjectList() {
   const { getToken } = useAuth()
+  const getTokenRef = useRef(getToken)
   const [projects, setProjects] = useState<ConstructionProject[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -12,11 +13,15 @@ export function ProjectList() {
   const [error, setError] = useState<string | null>(null)
   const limit = 10
 
+  useEffect(() => {
+    getTokenRef.current = getToken
+  }, [getToken])
+
   const fetchProjects = useCallback(async (pageNum: number, append: boolean) => {
     setLoading(true)
     setError(null)
     try {
-      const token = await getToken()
+      const token = await getTokenRef.current()
       if (!token) throw new Error('Not authenticated')
 
       const res = await api.get<Paginated<ConstructionProject>>(
@@ -36,7 +41,7 @@ export function ProjectList() {
     } finally {
       setLoading(false)
     }
-  }, [getToken])
+  }, [])
 
   useEffect(() => {
     fetchProjects(1, false)

@@ -12,7 +12,7 @@ export default async function labourRoutes(app: FastifyInstance) {
         properties: {
           fullName: {type:'string'}, age: {type:'integer'}, gender: {type:'string'},
           skillLevel: {type:'string'}, skillType: {type:'string'}, phone: {type:'string'},
-          profilePhotoUrl: {type:'string'}, houseNo: {type:'string'}, street: {type:'string'},
+          profilePhotoUrl: {type:'string'}, minimumWage: {type:'integer'}, houseNo: {type:'string'}, street: {type:'string'},
           locality: {type:'string'}, city: {type:'string'}, pincode: {type:'string'},
           id: {type:'string'},
         }
@@ -25,11 +25,11 @@ export default async function labourRoutes(app: FastifyInstance) {
 
     // Destructure only schema-allowed fields
     const { id: clientId, fullName, age, gender, skillLevel, skillType, phone,
-            profilePhotoUrl, houseNo, street, locality, city, pincode } = body
+            profilePhotoUrl, minimumWage, houseNo, street, locality, city, pincode } = body
 
     const data: any = {
       fullName, age, gender, skillLevel, skillType, phone,
-      profilePhotoUrl, houseNo, street, locality, city, pincode,
+      profilePhotoUrl, minimumWage, houseNo, street, locality, city, pincode,
       agentId, reviewStatus: 'pending',
     }
 
@@ -106,7 +106,7 @@ export default async function labourRoutes(app: FastifyInstance) {
       body: { type: 'object', properties: {
         fullName: {type:'string'}, age: {type:'integer'}, gender: {type:'string'},
         skillLevel: {type:'string'}, skillType: {type:'string'}, phone: {type:'string'},
-        profilePhotoUrl: {type:'string'}, houseNo: {type:'string'}, street: {type:'string'},
+        profilePhotoUrl: {type:'string'}, minimumWage: {type:'integer'}, houseNo: {type:'string'}, street: {type:'string'},
         locality: {type:'string'}, city: {type:'string'}, pincode: {type:'string'},
       }}
     }
@@ -121,7 +121,7 @@ export default async function labourRoutes(app: FastifyInstance) {
 
     const body = request.body as any
     const { fullName, age, gender, skillLevel, skillType, phone,
-            profilePhotoUrl, houseNo, street, locality, city, pincode } = body
+            profilePhotoUrl, minimumWage, houseNo, street, locality, city, pincode } = body
     const data: any = { reviewStatus: 'pending' }
     if (fullName        !== undefined) data.fullName        = fullName
     if (age             !== undefined) data.age             = age
@@ -130,6 +130,7 @@ export default async function labourRoutes(app: FastifyInstance) {
     if (skillType       !== undefined) data.skillType       = skillType
     if (phone           !== undefined) data.phone           = phone
     if (profilePhotoUrl !== undefined) data.profilePhotoUrl = profilePhotoUrl
+    if (minimumWage     !== undefined) data.minimumWage     = minimumWage
     if (houseNo         !== undefined) data.houseNo         = houseNo
     if (street          !== undefined) data.street          = street
     if (locality        !== undefined) data.locality        = locality
@@ -150,7 +151,7 @@ export default async function labourRoutes(app: FastifyInstance) {
         reviewStatus: {type:'string', enum:['pending','reviewed','deleted']},
         fullName: {type:'string'}, age: {type:'integer'}, gender: {type:'string'},
         skillLevel: {type:'string'}, skillType: {type:'string'}, phone: {type:'string'},
-        profilePhotoUrl: {type:'string'}, houseNo: {type:'string'}, street: {type:'string'},
+        profilePhotoUrl: {type:'string'}, minimumWage: {type:'integer'}, houseNo: {type:'string'}, street: {type:'string'},
         locality: {type:'string'}, city: {type:'string'}, pincode: {type:'string'},
       } }
     }
@@ -158,7 +159,7 @@ export default async function labourRoutes(app: FastifyInstance) {
     const { id } = request.params as any
     const body = request.body as any
     const { reviewStatus, fullName, age, gender, skillLevel, skillType, phone,
-            profilePhotoUrl, houseNo, street, locality, city, pincode } = body
+            profilePhotoUrl, minimumWage, houseNo, street, locality, city, pincode } = body
     const data: any = {}
     if (reviewStatus !== undefined) data.reviewStatus = reviewStatus
     if (fullName !== undefined) data.fullName = fullName
@@ -168,6 +169,7 @@ export default async function labourRoutes(app: FastifyInstance) {
     if (skillType !== undefined) data.skillType = skillType
     if (phone !== undefined) data.phone = phone
     if (profilePhotoUrl !== undefined) data.profilePhotoUrl = profilePhotoUrl
+    if (minimumWage !== undefined) data.minimumWage = minimumWage
     if (houseNo !== undefined) data.houseNo = houseNo
     if (street !== undefined) data.street = street
     if (locality !== undefined) data.locality = locality

@@ -405,3 +405,13 @@ label, .label {
   color: var(--concrete);
 }
 
+/* ponytail: hide native browser spinner arrows on number inputs globally */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+

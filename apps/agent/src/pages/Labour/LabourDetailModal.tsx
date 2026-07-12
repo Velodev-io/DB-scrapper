@@ -40,6 +40,7 @@ export function LabourDetailModal({ labour, onClose, onSaved }: Props) {
     skillType:       initialSkillTypeIsOther ? 'Other' : (labour.skillType ?? 'Mason / Bricklayer'),
     otherSkillType:  initialOtherSkillType,
     phone:           labour.phone,
+    minimumWage:     labour.minimumWage ? String(labour.minimumWage) : '',
     houseNo:         labour.houseNo ?? '',
     street:          labour.street ?? '',
     locality:        labour.locality ?? '',
@@ -94,6 +95,7 @@ export function LabourDetailModal({ labour, onClose, onSaved }: Props) {
         skillLevel:      form.skillLevel,
         skillType:       resolvedSkillType,
         phone:           form.phone,
+        minimumWage:     form.minimumWage ? parseInt(form.minimumWage, 10) : null,
         houseNo:         form.houseNo || null,
         street:          form.street || null,
         locality:        form.locality || null,
@@ -192,6 +194,7 @@ export function LabourDetailModal({ labour, onClose, onSaved }: Props) {
               <span className="chip" style={{ margin: 0, minHeight: 'auto', padding: '0.25rem 0.6rem', height: 'auto', fontSize: '0.75rem' }}>{labour.skillLevel}</span>
               {labour.skillType && <span className="chip" style={{ margin: 0, minHeight: 'auto', padding: '0.25rem 0.6rem', height: 'auto', fontSize: '0.75rem' }}>{labour.skillType}</span>}
               <span className="chip" style={{ margin: 0, minHeight: 'auto', padding: '0.25rem 0.6rem', height: 'auto', fontSize: '0.75rem' }}>{labour.gender}</span>
+              {labour.minimumWage && <span className="chip" style={{ margin: 0, minHeight: 'auto', padding: '0.25rem 0.6rem', height: 'auto', fontSize: '0.75rem', background: 'var(--sand)', color: 'var(--ink)' }}>₹{labour.minimumWage}/day</span>}
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -216,7 +219,9 @@ export function LabourDetailModal({ labour, onClose, onSaved }: Props) {
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--sand)', margin: '0.5rem 0' }} />
 
-            <h4 style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--concrete)', textTransform: 'uppercase' }}>Availability Address</h4>
+            <DetailRow label="Min Wage" value={labour.minimumWage ? `₹${labour.minimumWage} per day` : 'N/A'} />
+
+            <h4 style={{ margin: '0.5rem 0 0', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--concrete)', textTransform: 'uppercase' }}>Availability Address</h4>
             <DetailRow label="House/Flat" value={labour.houseNo ?? 'N/A'} />
             <DetailRow label="Street"     value={labour.street ?? 'N/A'} />
             <DetailRow label="Locality"   value={labour.locality ?? 'N/A'} />
@@ -282,6 +287,12 @@ export function LabourDetailModal({ labour, onClose, onSaved }: Props) {
               <label className="label">Phone Number *</label>
               <input type="tel" className="form-input" required value={form.phone}
                 onChange={e => update({ phone: e.target.value })} />
+            </div>
+
+            <div className="form-field">
+              <label className="label">Minimum Wage (per day, INR)</label>
+              <input type="number" className="form-input" value={form.minimumWage}
+                onChange={e => update({ minimumWage: e.target.value })} placeholder="e.g. 500" />
             </div>
 
             <h3 style={{ marginTop: '1.5rem', marginBottom: '0.75rem', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--concrete)' }}>

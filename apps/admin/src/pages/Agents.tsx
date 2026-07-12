@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img } from '@carry/shared'
 
@@ -12,20 +12,30 @@ interface AgentEntry {
   createdAt: string
   clerkUserId?: string
   imageUrl?: string
+  role?: string
 }
 
 export function Agents() {
   const { getToken } = useAuth()
+  const getTokenRef = useRef(getToken)
 
   const [agents, setAgents] = useState<AgentEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Invite modal state
-  const [showInvite, setShowInvite] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteLoading, setInviteLoading] = useState(false)
-  const [inviteError, setInviteError] = useState<string | null>(null)
+  useEffect(() => {
+    getTokenRef.current = getToken
+  }, [getToken])
+
+  // Create profile modal state
+  const [showCreate, setShowCreate] = useState(false)
+  const [createEmail, setCreateEmail] = useState('')
+  const [createName, setCreateName] = useState('')
+  const [createPhone, setCreatePhone] = useState('')
+  const [createAge, setCreateAge] = useState('')
+  const [createRole, setCreateRole] = useState('')
+  const [createLoading, setCreateLoading] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   // Edit modal state
   const [showEdit, setShowEdit] = useState(false)
@@ -35,60 +45,59 @@ export function Agents() {
   const [editAge, setEditAge] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editProfilePhotoUrl, setEditProfilePhotoUrl] = useState('')
+  const [editRole, setEditRole] = useState('')
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
   // Revoke confirm state
   const [revoking, setRevoking] = useState<string | null>(null) // clerkUserId
 
-  async function fetchAgents() {
-    setLoading(true)
+  async function fetchAgents(silent = false) {
+    if (!silent) setLoading(true)
     setError(null)
     try {
-      const token = await getToken()
+      const token = await getTokenRef.current()
       if (!token) throw new Error('Not authenticated')
-      const [active, pending] = await Promise.all([
-        api.get<{ id: string; name: string; email: string; phone?: string; age?: number; status: string; imageUrl?: string; createdAt: string }[]>('/agents', token),
-        api.get<{ id: string; email: string; status: string; createdAt: string }[]>('/agents/invitations', token),
-      ])
-      const merged: AgentEntry[] = [
-        ...active.map(u => ({ ...u, clerkUserId: u.id, status: 'active' as const })),
-        ...pending.map(u => ({ ...u, status: 'pending' as const })),
-      ]
-      setAgents(merged)
+      const active = await api.get<{ id: string; name: string; email: string; phone?: string; age?: number; status: string; role: string; imageUrl?: string; createdAt: string }[]>('/agents', token)
+      setAgents(active.map(u => ({ ...u, clerkUserId: u.id, status: 'active' as const })))
     } catch (err: any) {
       setError(err.message || 'Failed to fetch agents')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchAgents()
-    const timer = setInterval(fetchAgents, 5000) // ponytail: simple polling, websocket if scalability matters
+    fetchAgents(false)
+    const timer = setInterval(() => fetchAgents(true), 5000) // ponytail: simple polling, websocket if scalability matters
     return () => clearInterval(timer)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleInvite(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    setInviteLoading(true)
-    setInviteError(null)
+    setCreateLoading(true)
+    setCreateError(null)
     try {
       const token = await getToken()
       if (!token) throw new Error('Not authenticated')
-      const res = await api.post<{ invited: boolean; alreadyRegistered: boolean; email: string }>(
-        '/agents/invite', { email: inviteEmail }, token
-      )
-      setShowInvite(false)
-      setInviteEmail('')
+      await api.post('/agents', {
+        email: createEmail.trim(),
+        name: createName.trim(),
+        phone: createPhone.trim() || undefined,
+        age: createAge ? parseInt(createAge, 10) : undefined,
+        role: createRole.trim(),
+      }, token)
+      setShowCreate(false)
+      setCreateEmail('')
+      setCreateName('')
+      setCreatePhone('')
+      setCreateAge('')
+      setCreateRole('')
       fetchAgents()
-      if (res.alreadyRegistered) {
-        alert(`✅ ${res.email} already had an account — agent access granted directly. They can now log in.`)
-      }
     } catch (err: any) {
-      setInviteError(err.message || 'Failed to send invitation')
+      setCreateError(err.message || 'Failed to create agent profile')
     } finally {
-      setInviteLoading(false)
+      setCreateLoading(false)
     }
   }
 
@@ -120,7 +129,8 @@ export function Agents() {
         phone:           editPhone.trim() || undefined,
         age:             editAge ? parseInt(editAge, 10) : null,
         email:           editEmail.trim() || undefined,
-        profilePhotoUrl: editProfilePhotoUrl.trim() || null
+        profilePhotoUrl: editProfilePhotoUrl.trim() || null,
+        role:            editRole
       }, token)
       setShowEdit(false)
       fetchAgents()
@@ -135,8 +145,8 @@ export function Agents() {
     <div>
       <div className="page-header">
         <h1>Agents</h1>
-        <button id="btn-invite-agent" className="btn-primary" onClick={() => setShowInvite(true)}>
-          + Invite Agent
+        <button id="btn-create-agent" className="btn-primary" onClick={() => setShowCreate(true)}>
+          + Make Profile
         </button>
       </div>
 
@@ -155,6 +165,7 @@ export function Agents() {
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Age</th>
+                <th>Role</th>
                 <th>Status</th>
                 <th>Joined</th>
                 <th>Actions</th>
@@ -162,7 +173,7 @@ export function Agents() {
             </thead>
             <tbody>
               {agents.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>No agents found</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>No agents found</td></tr>
               )}
               {agents.map(agent => (
                 <tr key={agent.id}>
@@ -184,6 +195,16 @@ export function Agents() {
                   <td style={{ fontSize: '0.85rem' }}>{agent.phone || '—'}</td>
                   <td style={{ fontSize: '0.85rem' }}>{agent.age !== undefined && agent.age !== null ? agent.age : '—'}</td>
                   <td>
+                    <span className="role-badge" style={{
+                      textTransform: 'capitalize',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: agent.role === 'admin' ? 'var(--ochre)' : 'var(--coal)'
+                    }}>
+                      {agent.role || 'agent'}
+                    </span>
+                  </td>
+                  <td>
                     <span className={`status-pill ${agent.status}`}>{agent.status}</span>
                   </td>
                   <td style={{ color: 'var(--concrete)', fontSize: '0.85rem' }}>
@@ -203,6 +224,7 @@ export function Agents() {
                               setEditAge(agent.age !== undefined && agent.age !== null ? String(agent.age) : '')
                               setEditEmail(agent.email || '')
                               setEditProfilePhotoUrl(agent.imageUrl || '')
+                              setEditRole(agent.role || 'agent')
                               setEditError(null)
                               setShowEdit(true)
                             }}
@@ -229,9 +251,6 @@ export function Agents() {
                           </button>
                         </>
                       )}
-                      {agent.status === 'pending' && (
-                        <span style={{ color: 'var(--concrete)', fontSize: '0.8rem' }}>Invited — awaiting sign-up</span>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -254,7 +273,7 @@ export function Agents() {
                     <div className="mobile-card-thumb-placeholder">👤</div>
                   )}
                   <div className="mobile-card-title-group">
-                    <div className="mobile-card-title">{agent.name || 'Invited Agent'}</div>
+                    <div className="mobile-card-title">{agent.name || 'Agent Profile'}</div>
                     <div className="mobile-card-subtitle">{agent.email}</div>
                   </div>
                   <span className={`status-pill ${agent.status}`}>{agent.status}</span>
@@ -267,6 +286,10 @@ export function Agents() {
                   <div className="mobile-card-field">
                     <span className="field-label">Age:</span>
                     <span className="field-val">{agent.age !== undefined && agent.age !== null ? agent.age : '—'}</span>
+                  </div>
+                  <div className="mobile-card-field">
+                    <span className="field-label">Role:</span>
+                    <span className="field-val" style={{ textTransform: 'capitalize', fontWeight: 600 }}>{agent.role || 'agent'}</span>
                   </div>
                   <div className="mobile-card-field">
                     <span className="field-label">Joined:</span>
@@ -286,6 +309,7 @@ export function Agents() {
                           setEditAge(agent.age !== undefined && agent.age !== null ? String(agent.age) : '')
                           setEditEmail(agent.email || '')
                           setEditProfilePhotoUrl(agent.imageUrl || '')
+                          setEditRole(agent.role || 'agent')
                           setEditError(null)
                           setShowEdit(true)
                         }}
@@ -312,9 +336,6 @@ export function Agents() {
                       </button>
                     </>
                   )}
-                  {agent.status === 'pending' && (
-                    <span style={{ color: 'var(--concrete)', fontSize: '0.8rem', padding: '0.5rem 0' }}>Invited — awaiting sign-up</span>
-                  )}
                 </div>
               </div>
             ))}
@@ -323,40 +344,125 @@ export function Agents() {
         )}
       </div>
 
-      {/* Invite Modal */}
-      {showInvite && (
-        <div className="modal-backdrop" onClick={() => setShowInvite(false)}>
+      {/* Make Profile Modal */}
+      {showCreate && (
+        <div className="modal-backdrop" onClick={() => setShowCreate(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h2>Invite Agent</h2>
-            <form onSubmit={handleInvite}>
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.5rem' }}>
-                  Email address
+            <h2>Make Agent Profile</h2>
+            <form onSubmit={handleCreate}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Email Address *
                 </label>
                 <input
-                  id="invite-email-input"
+                  id="create-email-input"
                   type="email"
                   required
-                  value={inviteEmail}
-                  onChange={e => setInviteEmail(e.target.value)}
+                  value={createEmail}
+                  onChange={e => setCreateEmail(e.target.value)}
                   placeholder="agent@example.com"
                   style={{
                     width: '100%',
-                    padding: '0.625rem 0.875rem',
+                    padding: '0.5rem 0.75rem',
                     border: '1.5px solid var(--sand)',
                     borderRadius: '6px',
-                    fontFamily: 'var(--font-body)',
                     fontSize: '0.9rem',
                   }}
                 />
               </div>
-              {inviteError && <p style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '1rem' }}>{inviteError}</p>}
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Full Name *
+                </label>
+                <input
+                  id="create-name-input"
+                  type="text"
+                  required
+                  value={createName}
+                  onChange={e => setCreateName(e.target.value)}
+                  placeholder="e.g. Suryansh Singh"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Phone Number
+                </label>
+                <input
+                  id="create-phone-input"
+                  type="text"
+                  value={createPhone}
+                  onChange={e => setCreatePhone(e.target.value)}
+                  placeholder="e.g. +91 9999999999"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Age
+                </label>
+                <input
+                  id="create-age-input"
+                  type="number"
+                  value={createAge}
+                  onChange={e => setCreateAge(e.target.value)}
+                  placeholder="e.g. 25"
+                  min="0"
+                  max="120"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Role *
+                </label>
+                <input
+                  id="create-role-input"
+                  type="text"
+                  required
+                  value={createRole}
+                  onChange={e => setCreateRole(e.target.value)}
+                  placeholder="e.g. agent or admin"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              {createError && <p style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '1rem' }}>{createError}</p>}
+
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowInvite(false)}>
+                <button type="button" className="btn-secondary" onClick={() => setShowCreate(false)}>
                   Cancel
                 </button>
-                <button id="btn-send-invite" type="submit" className="btn-primary" disabled={inviteLoading}>
-                  {inviteLoading ? 'Sending…' : 'Send Invite'}
+                <button id="btn-save-create" type="submit" className="btn-primary" disabled={createLoading}>
+                  {createLoading ? 'Creating…' : 'Create Profile'}
                 </button>
               </div>
             </form>
@@ -447,7 +553,7 @@ export function Agents() {
                 />
               </div>
 
-              <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
                   Age
                 </label>
@@ -458,6 +564,26 @@ export function Agents() {
                   placeholder="e.g. 25"
                   min="0"
                   max="120"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Role *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editRole}
+                  onChange={e => setEditRole(e.target.value)}
+                  placeholder="e.g. agent or admin"
                   style={{
                     width: '100%',
                     padding: '0.5rem 0.75rem',

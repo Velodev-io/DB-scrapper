@@ -36,6 +36,7 @@ export function Labour() {
   const [editSkillType, setEditSkillType] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editProfilePhotoUrl, setEditProfilePhotoUrl] = useState('')
+  const [editMinimumWage, setEditMinimumWage] = useState('')
   const [editHouseNo, setEditHouseNo] = useState('')
   const [editStreet, setEditStreet] = useState('')
   const [editLocality, setEditLocality] = useState('')
@@ -53,6 +54,7 @@ export function Labour() {
     setEditSkillType(l.skillType || '')
     setEditPhone(l.phone)
     setEditProfilePhotoUrl(l.profilePhotoUrl || '')
+    setEditMinimumWage(l.minimumWage ? String(l.minimumWage) : '')
     setEditHouseNo(l.houseNo || '')
     setEditStreet(l.street || '')
     setEditLocality(l.locality || '')
@@ -78,6 +80,7 @@ export function Labour() {
         skillType:       editSkillType.trim() || null,
         phone:           editPhone.trim() || undefined,
         profilePhotoUrl: editProfilePhotoUrl.trim() || null,
+        minimumWage:     editMinimumWage ? parseInt(editMinimumWage, 10) : null,
         houseNo:         editHouseNo.trim() || null,
         street:          editStreet.trim() || null,
         locality:        editLocality.trim() || null,
@@ -220,6 +223,7 @@ export function Labour() {
                   <th>Skill</th>
                   <th>Skill Type</th>
                   <th>City</th>
+                  <th>Wage/Day</th>
                   <th>Phone</th>
                   <th>Agent</th>
                   <th>Date</th>
@@ -229,7 +233,7 @@ export function Labour() {
               </thead>
               <tbody>
                 {items.length === 0 && (
-                  <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>No records</td></tr>
+                  <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>No records</td></tr>
                 )}
                 {items.map(l => (
                   <tr key={l.id}>
@@ -252,6 +256,7 @@ export function Labour() {
                     <td>{l.skillLevel}</td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--concrete)' }}>{l.skillType ?? '—'}</td>
                     <td>{l.city ?? '—'}</td>
+                    <td>{l.minimumWage ? `₹${l.minimumWage}` : '—'}</td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{l.phone}</td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--concrete)' }}>{l.agent?.name ?? '—'}</td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--concrete)', whiteSpace: 'nowrap' }}>
@@ -301,6 +306,10 @@ export function Labour() {
                     <div className="mobile-card-field">
                       <span className="field-label">Phone:</span>
                       <span className="field-val">{l.phone}</span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">Wage/Day:</span>
+                      <span className="field-val">{l.minimumWage ? `₹${l.minimumWage}` : '—'}</span>
                     </div>
                     <div className="mobile-card-field">
                       <span className="field-label">City:</span>
@@ -380,6 +389,10 @@ export function Labour() {
               <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Phone *</label>
                 <input type="text" required value={editPhone} onChange={e => setEditPhone(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Minimum Wage (per day, INR)</label>
+                <input type="number" value={editMinimumWage} onChange={e => setEditMinimumWage(e.target.value)} placeholder="e.g. 500" style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
               </div>
               <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Profile Photo URL/Cloudinary Public ID</label>
@@ -468,6 +481,10 @@ export function Labour() {
                 <span className="detail-value" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem' }}>
                   <a href={`tel:${selected.phone}`} style={{ color: 'var(--ochre)' }}>{selected.phone}</a>
                 </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Wage/Day</span>
+                <span className="detail-value">{selected.minimumWage ? `₹${selected.minimumWage}` : '—'}</span>
               </div>
               {selected.city && (
                 <div className="detail-item">

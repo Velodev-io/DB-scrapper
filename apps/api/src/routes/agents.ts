@@ -6,12 +6,12 @@ import { prisma } from '../lib/prisma.js'
 export default async function agentRoutes(app: FastifyInstance) {
   const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! })
 
-  // GET /agents — list all Clerk users with role: agent
+  // GET /agents — list all Clerk users with a role assigned
   app.get('/agents', { preHandler: requireAdmin,
-    schema: { tags: ['Agents'], summary: 'List all agent users (admin)', security: [{ bearerAuth: [] }] }
+    schema: { tags: ['Agents'], summary: 'List all agent and admin users (admin)', security: [{ bearerAuth: [] }] }
   }, async () => {
     const { data: users } = await clerk.users.getUserList({ limit: 200 })
-    const activeAgents = users.filter(u => u.publicMetadata?.role === 'agent')
+    const activeAgents = users.filter(u => typeof u.publicMetadata?.role === 'string' && u.publicMetadata.role !== '')
     const clerkUserIds = activeAgents.map(u => u.id)
 
     // Query database for custom agent profiles
@@ -31,6 +31,7 @@ export default async function agentRoutes(app: FastifyInstance) {
         age:          dbAgent?.age ?? null,
         status:       dbAgent?.status || 'active',
         imageUrl:     u.publicMetadata?.profilePhotoUrl || u.imageUrl || '',
+        role:         u.publicMetadata?.role || 'agent',
         createdAt:    new Date(u.createdAt).toISOString(),
       }
     })
@@ -51,47 +52,74 @@ export default async function agentRoutes(app: FastifyInstance) {
       }))
   })
 
-  // POST /agents/invite — invite a new agent by email
-  app.post('/agents/invite', { preHandler: requireAdmin,
-    schema: { tags: ['Agents'], summary: 'Invite a new agent by email (admin)', security: [{ bearerAuth: [] }],
-      body: { type: 'object', required: ['email'], properties: { email: { type: 'string', format: 'email' } } }
-    }
-  }, async (request, reply) => {
-    const { email } = request.body as { email: string }
-    try {
-      // First try to send an invitation (for users not yet in Clerk)
-      await clerk.invitations.createInvitation({
-        emailAddress:   email,
-        publicMetadata: { role: 'agent' },
-        redirectUrl:    process.env.AGENT_APP_URL ?? 'https://carry-agent.web.app',
-      })
-      return { invited: true, alreadyRegistered: false, email }
-    } catch (inviteErr: any) {
-      app.log.error({ err: inviteErr }, 'Clerk invitation failed')
-
-      const status = inviteErr?.status ?? inviteErr?.errors?.[0]?.meta?.httpCode
-      const isDuplicate = inviteErr?.errors?.some((e: any) => e.code === 'duplicate_record') ||
-                          inviteErr?.message?.includes('already') ||
-                          inviteErr?.message?.includes('duplicate')
-
-      if (status === 422 || isDuplicate) {
-        try {
-          const { data: users } = await clerk.users.getUserList({ emailAddress: [email], limit: 1 })
-          if (!users.length) {
-            return reply.code(400).send({
-              error: 'Clerk blocks re-inviting this email due to accepted history. Please ask them to sign up directly first, then grant access.'
-            })
-          }
-          if (users[0].publicMetadata?.role === 'admin') {
-            return reply.code(400).send({ error: 'User is already an Admin' })
-          }
-          await clerk.users.updateUserMetadata(users[0].id, { publicMetadata: { role: 'agent' } })
-          return { invited: true, alreadyRegistered: true, email }
-        } catch (updateErr: any) {
-          return reply.code(400).send({ error: updateErr.message ?? 'Failed to grant access' })
+  // POST /agents — create a new agent profile (admin only)
+  app.post('/agents', { preHandler: requireAdmin,
+    schema: { tags: ['Agents'], summary: 'Create a new agent profile (admin)', security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['email', 'name', 'role'],
+        properties: {
+          email:           { type: 'string', format: 'email' },
+          name:            { type: 'string' },
+          phone:           { type: 'string' },
+          age:             { type: 'integer', minimum: 0, maximum: 120 },
+          role:            { type: 'string' }
         }
       }
-      return reply.code(400).send({ error: inviteErr.message ?? 'Failed to send invitation' })
+    }
+  }, async (request, reply) => {
+    const { email, name, phone, age, role } = request.body as {
+      email: string, name: string, phone?: string, age?: number, role: string
+    }
+
+    try {
+      // 1. Check if user already exists in Clerk
+      const { data: existingUsers } = await clerk.users.getUserList({ emailAddress: [email], limit: 1 })
+      let clerkUserId: string
+
+      if (existingUsers.length > 0) {
+        clerkUserId = existingUsers[0].id
+        // Update their role in Clerk
+        await clerk.users.updateUserMetadata(clerkUserId, { publicMetadata: { role } })
+      } else {
+        // 2. Create the user in Clerk
+        const parts = name.split(' ')
+        const firstName = parts[0] || ''
+        const lastName = parts.slice(1).join(' ')
+
+        const newUser = await clerk.users.createUser({
+          emailAddress: [email],
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          publicMetadata: { role },
+        })
+        clerkUserId = newUser.id
+      }
+
+      // 3. Create or update the local database profile
+      const agent = await prisma.agent.upsert({
+        where: { clerkUserId },
+        update: {
+          name,
+          phone: phone || null,
+          age: age || null,
+          email,
+          status: 'active',
+        },
+        create: {
+          clerkUserId,
+          name,
+          phone: phone || null,
+          age: age || null,
+          email,
+          status: 'active',
+        }
+      })
+
+      return agent
+    } catch (err: any) {
+      app.log.error({ err }, 'Failed to create agent profile')
+      return reply.code(400).send({ error: err.message ?? 'Failed to create agent profile' })
     }
   })
 
@@ -182,14 +210,15 @@ export default async function agentRoutes(app: FastifyInstance) {
           phone:           { type: 'string' },
           age:             { type: 'integer', minimum: 0, maximum: 120 },
           email:           { type: 'string', format: 'email' },
-          profilePhotoUrl: { type: 'string' }
+          profilePhotoUrl: { type: 'string' },
+          role:            { type: 'string' }
         }
       }
     }
   }, async (request, reply) => {
     const { clerkUserId } = request.params as { clerkUserId: string }
-    const { name, phone, age, email, profilePhotoUrl } = request.body as {
-      name?: string, phone?: string, age?: number, email?: string, profilePhotoUrl?: string
+    const { name, phone, age, email, profilePhotoUrl, role } = request.body as {
+      name?: string, phone?: string, age?: number, email?: string, profilePhotoUrl?: string, role?: string
     }
 
     try {
@@ -255,6 +284,17 @@ export default async function agentRoutes(app: FastifyInstance) {
           })
         } catch (clerkErr: any) {
           app.log.warn({ err: clerkErr }, 'Failed to update profile photo URL in Clerk metadata')
+        }
+      }
+
+      // Update role in Clerk publicMetadata if it changed
+      if (role !== undefined) {
+        try {
+          await clerk.users.updateUserMetadata(clerkUserId, {
+            publicMetadata: { role }
+          })
+        } catch (clerkErr: any) {
+          app.log.warn({ err: clerkErr }, 'Failed to update role in Clerk metadata')
         }
       }
 

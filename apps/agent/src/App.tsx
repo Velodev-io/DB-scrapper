@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { SignedIn, SignedOut, SignIn, useUser, useAuth } from '@clerk/clerk-react'
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { BottomNav } from './components/BottomNav'
 import { NetworkBanner } from './components/NetworkBanner'
 import { flushUploadQueueForeground, flushPendingRecordsForeground } from './lib/uploadQueue'
@@ -20,6 +20,11 @@ function AgentGuard({ children }: { children: React.ReactNode }) {
   const { user } = useUser()
   const { getToken } = useAuth()
   const role = user?.publicMetadata?.role as string | undefined
+  const getTokenRef = useRef(getToken)
+
+  useEffect(() => {
+    getTokenRef.current = getToken
+  }, [getToken])
 
   // Auto-reload the Clerk session when no role is present.
   // This picks up publicMetadata changes made by the admin without
@@ -30,7 +35,7 @@ function AgentGuard({ children }: { children: React.ReactNode }) {
     // Automatically check with backend if the email has a pending invitation
     const syncRole = async () => {
       try {
-        const token = await getToken()
+        const token = await getTokenRef.current()
         if (!token) return
         const base = import.meta.env.VITE_API_BASE ?? 'http://localhost:4001/api/v1'
         const res = await fetch(`${base}/agents/sync-role`, {
@@ -55,7 +60,7 @@ function AgentGuard({ children }: { children: React.ReactNode }) {
 
     const id = setInterval(() => { user.reload() }, 2000)
     return () => clearInterval(id)
-  }, [user, role, getToken])
+  }, [user, role])
 
   if (!user) return null
 
@@ -76,14 +81,20 @@ function AgentGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { getToken } = useAuth()
+  const { getToken, isSignedIn } = useAuth()
+  const getTokenRef = useRef(getToken)
 
   useEffect(() => {
-    window.__clerkGetToken = () => getToken()
+    getTokenRef.current = getToken
+  }, [getToken])
+
+  useEffect(() => {
+    if (!isSignedIn) return
+    window.__clerkGetToken = () => getTokenRef.current()
     // Trigger offline synchronization now that the Clerk authentication token is set
     flushUploadQueueForeground().catch(console.error)
     flushPendingRecordsForeground().catch(console.error)
-  }, [getToken])
+  }, [isSignedIn])
 
   return (
     <>

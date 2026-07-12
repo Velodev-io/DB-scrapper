@@ -92,6 +92,7 @@ export interface Labour {
   skillType?:      string        // only if Skilled
   phone:           string
   profilePhotoUrl?: string       // Cloudinary public ID
+  minimumWage?:    number       // minimum wage per day in INR
   houseNo?:        string
   street?:         string
   locality?:       string

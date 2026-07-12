@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { UserButton, useUser, useAuth } from '@clerk/clerk-react'
 import { api, type Property, type Labour, type Shop, type Paginated } from '@carry/shared'
 
 export function Profile() {
+  const navigate = useNavigate()
   const { user } = useUser()
   const { getToken } = useAuth()
-  const navigate = useNavigate()
+  const getTokenRef = useRef(getToken)
   const [propertyCount, setPropertyCount] = useState<number | null>(null)
   const [labourCount, setLabourCount] = useState<number | null>(null)
   const [shopCount, setShopCount] = useState<number | null>(null)
@@ -14,9 +15,13 @@ export function Profile() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    getTokenRef.current = getToken
+  }, [getToken])
+
+  useEffect(() => {
     async function fetchStats() {
       try {
-        const token = await getToken()
+        const token = await getTokenRef.current()
         if (!token) return
         const [propsRes, labourRes, shopsRes] = await Promise.all([
           api.get<Paginated<Property>>('/properties/mine?page=1&limit=1', token),
@@ -33,7 +38,7 @@ export function Profile() {
       }
     }
     fetchStats()
-  }, [getToken])
+  }, [])
 
   const statCards = [
     { count: propertyCount, label: 'Properties', route: '/properties', emoji: '🏠' },

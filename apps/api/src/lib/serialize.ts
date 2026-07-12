@@ -91,6 +91,7 @@ export function serializeLabour(row: any): Labour {
     skillType: row.skillType ?? undefined,
     phone: row.phone,
     profilePhotoUrl: row.profilePhotoUrl ?? undefined,
+    minimumWage: row.minimumWage ?? undefined,
     houseNo: row.houseNo ?? undefined,
     street: row.street ?? undefined,
     locality: row.locality ?? undefined,
