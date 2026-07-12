@@ -85,17 +85,40 @@ export default async function projectRoutes(app: FastifyInstance) {
     return { data: rows.map(serializeProject), total, page, limit }
   })
 
-  // PATCH /projects/:id — admin updates reviewStatus
+  // PATCH /projects/:id — admin updates reviewStatus and other details
   app.patch('/projects/:id', { preHandler: requireAdmin,
-    schema: { tags: ['Projects'], summary: 'Update project review status (admin)', security: [{ bearerAuth: [] }],
+    schema: { tags: ['Projects'], summary: 'Update project review status and details (admin)', security: [{ bearerAuth: [] }],
       params: { type: 'object', properties: { id: {type:'string'} }, required: ['id'] },
-      body: { type: 'object', properties: { reviewStatus: {type:'string', enum:['pending','reviewed','deleted']} } }
+      body: { type: 'object', properties: {
+        reviewStatus: {type:'string', enum:['pending','reviewed','deleted']},
+        title: {type:'string'}, category: {type:'string'}, location: {type:'string'},
+        areaSqft: {type:'integer'}, durationMonths: {type:'integer'}, packageTier: {type:'string'},
+        description: {type:'string'},
+        beforeImages: {type:'array', items:{type:'string'}},
+        afterImages: {type:'array', items:{type:'string'}},
+        stageImages: {type:'array', items:{type:'string'}},
+      } }
     }
   }, async (request, reply) => {
     const { id } = request.params as any
-    const { reviewStatus } = request.body as any
+    const body = request.body as any
+    const { reviewStatus, title, category, location, areaSqft, durationMonths, packageTier, description,
+            beforeImages, afterImages, stageImages } = body
+    const data: any = {}
+    if (reviewStatus !== undefined) data.reviewStatus = reviewStatus
+    if (title !== undefined) data.title = title
+    if (category !== undefined) data.category = category
+    if (location !== undefined) data.location = location
+    if (areaSqft !== undefined) data.areaSqft = areaSqft
+    if (durationMonths !== undefined) data.durationMonths = durationMonths
+    if (packageTier !== undefined) data.packageTier = packageTier
+    if (description !== undefined) data.description = description
+    if (beforeImages !== undefined) data.beforeImages = beforeImages
+    if (afterImages !== undefined) data.afterImages = afterImages
+    if (stageImages !== undefined) data.stageImages = stageImages
+
     try {
-      const row = await prisma.constructionProject.update({ where: { id }, data: { reviewStatus },
+      const row = await prisma.constructionProject.update({ where: { id }, data,
         include: { agent: { select: { id: true, name: true, email: true } } } })
       return serializeProject(row)
     } catch { return reply.code(404).send({ error: 'Project not found' }) }

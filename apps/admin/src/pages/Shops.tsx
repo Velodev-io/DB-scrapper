@@ -25,6 +25,62 @@ export function Shops() {
   })
   const limit = 20
 
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false)
+  const [editShopId, setEditShopId] = useState<string | null>(null)
+  const [editShopName, setEditShopName] = useState('')
+  const [editShopType, setEditShopType] = useState('')
+  const [editKeeperName, setEditKeeperName] = useState('')
+  const [editKeeperPhone, setEditKeeperPhone] = useState('')
+  const [editAddress, setEditAddress] = useState('')
+  const [editLat, setEditLat] = useState('')
+  const [editLng, setEditLng] = useState('')
+  const [editImages, setEditImages] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
+  function startEdit(s: Shop) {
+    setEditShopId(s.id)
+    setEditShopName(s.shopName)
+    setEditShopType(s.shopType)
+    setEditKeeperName(s.keeperName)
+    setEditKeeperPhone(s.keeperPhone)
+    setEditAddress(s.address || '')
+    setEditLat(s.lat !== undefined && s.lat !== null ? String(s.lat) : '')
+    setEditLng(s.lng !== undefined && s.lng !== null ? String(s.lng) : '')
+    setEditImages(s.images ? s.images.join(', ') : '')
+    setEditError(null)
+    setShowEdit(true)
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editShopId) return
+    setEditLoading(true)
+    setEditError(null)
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+      const updated = await api.patch<Shop>(`/shops/${editShopId}`, {
+        shopName:    editShopName.trim() || undefined,
+        shopType:    editShopType.trim() || undefined,
+        keeperName:  editKeeperName.trim() || undefined,
+        keeperPhone: editKeeperPhone.trim() || undefined,
+        address:     editAddress.trim() || null,
+        lat:         editLat ? parseFloat(editLat) : null,
+        lng:         editLng ? parseFloat(editLng) : null,
+        images:      editImages ? editImages.split(',').map(img => img.trim()).filter(Boolean) : [],
+      }, token)
+      setItems(prev => prev.map(s => s.id === editShopId ? updated : s))
+      if (selected?.id === editShopId) setSelected(updated)
+      setShowEdit(false)
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update shop record')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   const buildQuery = useCallback((f: FilterState, p: number) => {
     const params = new URLSearchParams({ page: String(p), limit: String(limit) })
     if (f.agentId)      params.set('agentId', f.agentId)
@@ -157,6 +213,7 @@ export function Shops() {
                     <td>
                       <div className="action-group">
                         <button id={`btn-view-shop-${s.id}`} className="btn-action" onClick={() => setSelected(s)}>View</button>
+                        <button id={`btn-edit-shop-${s.id}`} className="btn-action" onClick={() => startEdit(s)}>Edit</button>
                         {s.reviewStatus !== 'reviewed' && (
                           <button id={`btn-review-shop-${s.id}`} className="btn-action btn-review" onClick={() => markReviewed(s.id)}>Review</button>
                         )}
@@ -208,6 +265,7 @@ export function Shops() {
                   </div>
                   <div className="mobile-card-actions">
                     <button id={`btn-view-shop-mob-${s.id}`} className="btn-action" onClick={() => setSelected(s)}>View</button>
+                    <button id={`btn-edit-shop-mob-${s.id}`} className="btn-action" onClick={() => startEdit(s)}>Edit</button>
                     {s.reviewStatus !== 'reviewed' && (
                       <button id={`btn-review-shop-mob-${s.id}`} className="btn-action btn-review" onClick={() => markReviewed(s.id)}>Review</button>
                     )}
@@ -228,6 +286,59 @@ export function Shops() {
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {showEdit && (
+        <div className="modal-backdrop" onClick={() => setShowEdit(false)}>
+          <div className="modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+            <h2>Edit Shop Profile</h2>
+            {editError && <p style={{ color: 'var(--error)', margin: '0.5rem 0' }}>{editError}</p>}
+            <form onSubmit={handleEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Shop Name *</label>
+                <input type="text" required value={editShopName} onChange={e => setEditShopName(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Shop Type *</label>
+                <input type="text" required value={editShopType} onChange={e => setEditShopType(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Shopkeeper Name *</label>
+                  <input type="text" required value={editKeeperName} onChange={e => setEditKeeperName(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Shopkeeper Phone *</label>
+                  <input type="text" required value={editKeeperPhone} onChange={e => setEditKeeperPhone(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Full Address</label>
+                <input type="text" value={editAddress} onChange={e => setEditAddress(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Latitude</label>
+                  <input type="number" step="any" value={editLat} onChange={e => setEditLat(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Longitude</label>
+                  <input type="number" step="any" value={editLng} onChange={e => setEditLng(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Cloudinary Image IDs (comma-separated)</label>
+                <input type="text" value={editImages} onChange={e => setEditImages(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowEdit(false)} disabled={editLoading}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={editLoading}>{editLoading ? 'Saving…' : 'Save Changes'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selected && (

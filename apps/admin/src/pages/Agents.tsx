@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { api } from '@carry/shared'
+import { api, img } from '@carry/shared'
 
 interface AgentEntry {
   id: string
@@ -11,6 +11,7 @@ interface AgentEntry {
   status: 'active' | 'pending'
   createdAt: string
   clerkUserId?: string
+  imageUrl?: string
 }
 
 export function Agents() {
@@ -32,6 +33,8 @@ export function Agents() {
   const [editName, setEditName] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editAge, setEditAge] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editProfilePhotoUrl, setEditProfilePhotoUrl] = useState('')
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -45,7 +48,7 @@ export function Agents() {
       const token = await getToken()
       if (!token) throw new Error('Not authenticated')
       const [active, pending] = await Promise.all([
-        api.get<{ id: string; name: string; email: string; phone?: string; age?: number; status: string; createdAt: string }[]>('/agents', token),
+        api.get<{ id: string; name: string; email: string; phone?: string; age?: number; status: string; imageUrl?: string; createdAt: string }[]>('/agents', token),
         api.get<{ id: string; email: string; status: string; createdAt: string }[]>('/agents/invitations', token),
       ])
       const merged: AgentEntry[] = [
@@ -113,9 +116,11 @@ export function Agents() {
       const token = await getToken()
       if (!token) throw new Error('Not authenticated')
       await api.patch(`/agents/${editAgentId}`, {
-        name:  editName.trim() || undefined,
-        phone: editPhone.trim() || undefined,
-        age:   editAge ? parseInt(editAge, 10) : null
+        name:            editName.trim() || undefined,
+        phone:           editPhone.trim() || undefined,
+        age:             editAge ? parseInt(editAge, 10) : null,
+        email:           editEmail.trim() || undefined,
+        profilePhotoUrl: editProfilePhotoUrl.trim() || null
       }, token)
       setShowEdit(false)
       fetchAgents()
@@ -145,6 +150,7 @@ export function Agents() {
             <table>
             <thead>
               <tr>
+                <th style={{ width: 60 }}>Photo</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
@@ -160,6 +166,19 @@ export function Agents() {
               )}
               {agents.map(agent => (
                 <tr key={agent.id}>
+                  <td>
+                    {agent.imageUrl
+                      ? <img className="table-thumb" src={agent.imageUrl.startsWith('http') ? agent.imageUrl : img.thumb(agent.imageUrl)} alt={agent.name || 'Agent'} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                      : (
+                        <div className="table-thumb" style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'var(--sand)', borderRadius: '50%',
+                          width: 36, height: 36, fontSize: '1.2rem'
+                        }}>
+                          👤
+                        </div>
+                      )}
+                  </td>
                   <td style={{ fontWeight: 500 }}>{agent.name || '—'}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{agent.email}</td>
                   <td style={{ fontSize: '0.85rem' }}>{agent.phone || '—'}</td>
@@ -182,6 +201,8 @@ export function Agents() {
                               setEditName(agent.name || '')
                               setEditPhone(agent.phone || '')
                               setEditAge(agent.age !== undefined && agent.age !== null ? String(agent.age) : '')
+                              setEditEmail(agent.email || '')
+                              setEditProfilePhotoUrl(agent.imageUrl || '')
                               setEditError(null)
                               setShowEdit(true)
                             }}
@@ -227,7 +248,11 @@ export function Agents() {
             {agents.map(agent => (
               <div key={agent.id} className="mobile-card">
                 <div className="mobile-card-header">
-                  <div className="mobile-card-thumb-placeholder">👤</div>
+                  {agent.imageUrl ? (
+                    <img className="mobile-card-thumb" src={agent.imageUrl.startsWith('http') ? agent.imageUrl : img.thumb(agent.imageUrl)} alt={agent.name || 'Agent'} style={{ borderRadius: '50%' }} />
+                  ) : (
+                    <div className="mobile-card-thumb-placeholder">👤</div>
+                  )}
                   <div className="mobile-card-title-group">
                     <div className="mobile-card-title">{agent.name || 'Invited Agent'}</div>
                     <div className="mobile-card-subtitle">{agent.email}</div>
@@ -259,6 +284,8 @@ export function Agents() {
                           setEditName(agent.name || '')
                           setEditPhone(agent.phone || '')
                           setEditAge(agent.age !== undefined && agent.age !== null ? String(agent.age) : '')
+                          setEditEmail(agent.email || '')
+                          setEditProfilePhotoUrl(agent.imageUrl || '')
                           setEditError(null)
                           setShowEdit(true)
                         }}
@@ -343,6 +370,45 @@ export function Agents() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2>Edit Agent Profile</h2>
             <form onSubmit={handleEdit}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={editEmail}
+                  onChange={e => setEditEmail(e.target.value)}
+                  placeholder="agent@example.com"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
+                  Profile Photo URL / Cloudinary Public ID
+                </label>
+                <input
+                  type="text"
+                  value={editProfilePhotoUrl}
+                  onChange={e => setEditProfilePhotoUrl(e.target.value)}
+                  placeholder="e.g. agent_avatar_123 or https://..."
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1.5px solid var(--sand)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
                   Full Name

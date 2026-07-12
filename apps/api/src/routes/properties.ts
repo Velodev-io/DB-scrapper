@@ -171,17 +171,67 @@ export default async function propertyRoutes(app: FastifyInstance) {
     } catch { return reply.code(500).send({ error: 'Failed to update property' }) }
   })
 
-  // PATCH /properties/:id — admin updates reviewStatus
+  // PATCH /properties/:id — admin updates reviewStatus and other details
   app.patch('/properties/:id', { preHandler: requireAdmin,
-    schema: { tags: ['Properties'], summary: 'Update property review status (admin)', security: [{ bearerAuth: [] }],
+    schema: { tags: ['Properties'], summary: 'Update property review status and details (admin)', security: [{ bearerAuth: [] }],
       params: { type: 'object', properties: { id: {type:'string'} }, required: ['id'] },
-      body: { type: 'object', properties: { reviewStatus: {type:'string', enum:['pending','reviewed','deleted']} } }
+      body: { type: 'object', properties: {
+        reviewStatus: {type:'string', enum:['pending','reviewed','deleted']},
+        title: {type:'string'}, propertyType: {type:'string'}, listingType: {type:'string'},
+        bhk: {type:'integer'}, priceInr: {type:'integer'}, priceLabel: {type:'string'},
+        areaSqft: {type:'integer'}, locality: {type:'string'}, city: {type:'string'},
+        address: {type:'string'}, reraNumber: {type:'string'}, status: {type:'string'},
+        furnishing: {type:'string'}, description: {type:'string'},
+        images: {type:'array', items:{type:'string'}}, floorPlanUrl: {type:'string'},
+        lat: {type:'number'}, lng: {type:'number'},
+        securityDeposit: {type:'integer'}, availableFrom: {type:'string'},
+        preferredTenant: {type:'string'}, petFriendly: {type:'boolean'},
+        maintenanceCharges: {type:'integer'}, leaseDuration: {type:'integer'},
+        lockInPeriod: {type:'integer'}, camCharges: {type:'integer'},
+        plotAllowedUse: {type:'string'}
+      } }
     }
   }, async (request, reply) => {
     const { id } = request.params as any
-    const { reviewStatus } = request.body as any
+    const body = request.body as any
+    const { reviewStatus, title, propertyType, listingType, bhk, priceInr, priceLabel,
+            areaSqft, locality, city, address, reraNumber, status, furnishing,
+            description, images, floorPlanUrl, lat, lng,
+            securityDeposit, availableFrom, preferredTenant, petFriendly, maintenanceCharges,
+            leaseDuration, lockInPeriod, camCharges, plotAllowedUse } = body
+    
+    const data: any = {}
+    if (reviewStatus !== undefined) data.reviewStatus = reviewStatus
+    if (title !== undefined) data.title = title
+    if (propertyType !== undefined) data.propertyType = propertyType
+    if (listingType !== undefined) data.listingType = listingType
+    if (bhk !== undefined) data.bhk = bhk
+    if (priceInr !== undefined) data.priceInr = priceInr
+    if (priceLabel !== undefined) data.priceLabel = priceLabel
+    if (areaSqft !== undefined) data.areaSqft = areaSqft
+    if (locality !== undefined) data.locality = locality
+    if (city !== undefined) data.city = city
+    if (address !== undefined) data.address = address
+    if (reraNumber !== undefined) data.reraNumber = reraNumber
+    if (status !== undefined) data.status = status
+    if (furnishing !== undefined) data.furnishing = furnishing
+    if (description !== undefined) data.description = description
+    if (images !== undefined) data.images = images
+    if (floorPlanUrl !== undefined) data.floorPlanUrl = floorPlanUrl
+    if (lat !== undefined) data.lat = lat
+    if (lng !== undefined) data.lng = lng
+    if (securityDeposit !== undefined) data.securityDeposit = securityDeposit
+    if (availableFrom !== undefined) data.availableFrom = availableFrom
+    if (preferredTenant !== undefined) data.preferredTenant = preferredTenant
+    if (petFriendly !== undefined) data.petFriendly = petFriendly
+    if (maintenanceCharges !== undefined) data.maintenanceCharges = maintenanceCharges
+    if (leaseDuration !== undefined) data.leaseDuration = leaseDuration
+    if (lockInPeriod !== undefined) data.lockInPeriod = lockInPeriod
+    if (camCharges !== undefined) data.camCharges = camCharges
+    if (plotAllowedUse !== undefined) data.plotAllowedUse = plotAllowedUse
+
     try {
-      const row = await prisma.property.update({ where: { id }, data: { reviewStatus },
+      const row = await prisma.property.update({ where: { id }, data,
         include: { agent: { select: { id: true, name: true, email: true } } } })
       return serializeProperty(row)
     } catch { return reply.code(404).send({ error: 'Property not found' }) }

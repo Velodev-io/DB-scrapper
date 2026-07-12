@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Property, type Paginated } from '@carry/shared'
 import {
-  PROPERTY_TYPES, LISTING_TYPES, REVIEW_STATUSES
+  PROPERTY_TYPES, LISTING_TYPES, REVIEW_STATUSES,
+  PROPERTY_STATUSES, FURNISHING_TYPES, PREFERRED_TENANT_TYPES, PLOT_ALLOWED_USE_TYPES
 } from '@carry/shared'
 import { downloadZip } from '../lib/downloadZip'
 
@@ -28,6 +29,125 @@ export function Properties() {
     agentId: '', reviewStatus: '', listingType: '', propertyType: '', city: '',
   })
   const limit = 20
+
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false)
+  const [editPropertyId, setEditPropertyId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editPropertyType, setEditPropertyType] = useState('')
+  const [editListingType, setEditListingType] = useState('')
+  const [editBhk, setEditBhk] = useState('')
+  const [editPriceInr, setEditPriceInr] = useState('')
+  const [editPriceLabel, setEditPriceLabel] = useState('')
+  const [editAreaSqft, setEditAreaSqft] = useState('')
+  const [editLocality, setEditLocality] = useState('')
+  const [editCity, setEditCity] = useState('')
+  const [editAddress, setEditAddress] = useState('')
+  const [editReraNumber, setEditReraNumber] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [editFurnishing, setEditFurnishing] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editImages, setEditImages] = useState('')
+  const [editFloorPlanUrl, setEditFloorPlanUrl] = useState('')
+  const [editLat, setEditLat] = useState('')
+  const [editLng, setEditLng] = useState('')
+  const [editSecurityDeposit, setEditSecurityDeposit] = useState('')
+  const [editAvailableFrom, setEditAvailableFrom] = useState('')
+  const [editPreferredTenant, setEditPreferredTenant] = useState('')
+  const [editPetFriendly, setEditPetFriendly] = useState(false)
+  const [editMaintenanceCharges, setEditMaintenanceCharges] = useState('')
+  const [editLeaseDuration, setEditLeaseDuration] = useState('')
+  const [editLockInPeriod, setEditLockInPeriod] = useState('')
+  const [editCamCharges, setEditCamCharges] = useState('')
+  const [editPlotAllowedUse, setEditPlotAllowedUse] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
+  function startEdit(p: Property) {
+    setEditPropertyId(p.id)
+    setEditTitle(p.title)
+    setEditPropertyType(p.propertyType)
+    setEditListingType(p.listingType)
+    setEditBhk(p.bhk !== undefined && p.bhk !== null ? String(p.bhk) : '')
+    setEditPriceInr(String(p.priceInr))
+    setEditPriceLabel(p.priceLabel)
+    setEditAreaSqft(String(p.areaSqft))
+    setEditLocality(p.locality)
+    setEditCity(p.city)
+    setEditAddress(p.address || '')
+    setEditReraNumber(p.reraNumber || '')
+    setEditStatus(p.status)
+    setEditFurnishing(p.furnishing || '')
+    setEditDescription(p.description || '')
+    setEditImages(p.images ? p.images.join(', ') : '')
+    setEditFloorPlanUrl(p.floorPlanUrl || '')
+    setEditLat(p.lat !== undefined && p.lat !== null ? String(p.lat) : '')
+    setEditLng(p.lng !== undefined && p.lng !== null ? String(p.lng) : '')
+    setEditSecurityDeposit(p.securityDeposit !== undefined && p.securityDeposit !== null ? String(p.securityDeposit) : '')
+    setEditAvailableFrom(p.availableFrom || '')
+    setEditPreferredTenant(p.preferredTenant || '')
+    setEditPetFriendly(p.petFriendly || false)
+    setEditMaintenanceCharges(p.maintenanceCharges !== undefined && p.maintenanceCharges !== null ? String(p.maintenanceCharges) : '')
+    setEditLeaseDuration(p.leaseDuration !== undefined && p.leaseDuration !== null ? String(p.leaseDuration) : '')
+    setEditLockInPeriod(p.lockInPeriod !== undefined && p.lockInPeriod !== null ? String(p.lockInPeriod) : '')
+    setEditCamCharges(p.camCharges !== undefined && p.camCharges !== null ? String(p.camCharges) : '')
+    setEditPlotAllowedUse(p.plotAllowedUse || '')
+    setEditError(null)
+    setShowEdit(true)
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editPropertyId) return
+    setEditLoading(true)
+    setEditError(null)
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+      
+      const payload: any = {
+        title:              editTitle.trim() || undefined,
+        propertyType:       editPropertyType || undefined,
+        listingType:        editListingType || undefined,
+        bhk:                editBhk ? parseInt(editBhk, 10) : null,
+        priceInr:           editPriceInr ? parseInt(editPriceInr, 10) : undefined,
+        priceLabel:         editPriceLabel.trim() || undefined,
+        areaSqft:           editAreaSqft ? parseInt(editAreaSqft, 10) : undefined,
+        locality:           editLocality.trim() || undefined,
+        city:               editCity.trim() || undefined,
+        address:            editAddress.trim() || null,
+        reraNumber:         editReraNumber.trim() || null,
+        status:             editStatus || undefined,
+        furnishing:         editFurnishing || null,
+        description:        editDescription.trim() || null,
+        images:             editImages ? editImages.split(',').map(s => s.trim()).filter(Boolean) : [],
+        floorPlanUrl:       editFloorPlanUrl.trim() || null,
+        lat:                editLat ? parseFloat(editLat) : null,
+        lng:                editLng ? parseFloat(editLng) : null,
+      }
+
+      if (editListingType === 'Rent') {
+        payload.securityDeposit    = editSecurityDeposit ? parseInt(editSecurityDeposit, 10) : null
+        payload.availableFrom      = editAvailableFrom.trim() || null
+        payload.preferredTenant    = editPreferredTenant || null
+        payload.petFriendly        = editPetFriendly
+        payload.maintenanceCharges = editMaintenanceCharges ? parseInt(editMaintenanceCharges, 10) : null
+        payload.leaseDuration      = editLeaseDuration ? parseInt(editLeaseDuration, 10) : null
+        payload.lockInPeriod       = editLockInPeriod ? parseInt(editLockInPeriod, 10) : null
+        payload.camCharges         = editCamCharges ? parseInt(editCamCharges, 10) : null
+        payload.plotAllowedUse     = editPlotAllowedUse || null
+      }
+
+      const updated = await api.patch<Property>(`/properties/${editPropertyId}`, payload, token)
+      setItems(prev => prev.map(p => p.id === editPropertyId ? updated : p))
+      if (selected?.id === editPropertyId) setSelected(updated)
+      setShowEdit(false)
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update property record')
+    } finally {
+      setEditLoading(false)
+    }
+  }
 
   const buildQuery = useCallback((f: FilterState, p: number) => {
     const params = new URLSearchParams({ page: String(p), limit: String(limit) })
@@ -194,6 +314,11 @@ export function Properties() {
                           className="btn-action"
                           onClick={() => setSelected(p)}
                         >View</button>
+                        <button
+                          id={`btn-edit-prop-${p.id}`}
+                          className="btn-action"
+                          onClick={() => startEdit(p)}
+                        >Edit</button>
                         {p.reviewStatus !== 'reviewed' && (
                           <button
                             id={`btn-review-prop-${p.id}`}
@@ -255,6 +380,7 @@ export function Properties() {
                   </div>
                   <div className="mobile-card-actions">
                     <button id={`btn-view-prop-mob-${p.id}`} className="btn-action" onClick={() => setSelected(p)}>View</button>
+                    <button id={`btn-edit-prop-mob-${p.id}`} className="btn-action" onClick={() => startEdit(p)}>Edit</button>
                     {p.reviewStatus !== 'reviewed' && (
                       <button id={`btn-review-prop-mob-${p.id}`} className="btn-action btn-review" onClick={() => markReviewed(p.id)}>Review</button>
                     )}
@@ -286,6 +412,168 @@ export function Properties() {
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {showEdit && (
+        <div className="modal-backdrop" onClick={() => setShowEdit(false)}>
+          <div className="modal" style={{ maxWidth: 680, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <h2>Edit Property Profile</h2>
+            {editError && <p style={{ color: 'var(--error)', margin: '0.5rem 0' }}>{editError}</p>}
+            <form onSubmit={handleEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Property Title *</label>
+                <input type="text" required value={editTitle} onChange={e => setEditTitle(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Property Type *</label>
+                  <select required value={editPropertyType} onChange={e => setEditPropertyType(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                    {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Listing Type *</label>
+                  <select required value={editListingType} onChange={e => setEditListingType(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                    {LISTING_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>BHK (if residential)</label>
+                  <input type="number" value={editBhk} onChange={e => setEditBhk(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Price (INR) *</label>
+                  <input type="number" required value={editPriceInr} onChange={e => setEditPriceInr(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Price Label *</label>
+                  <input type="text" required value={editPriceLabel} onChange={e => setEditPriceLabel(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Area (Sqft) *</label>
+                  <input type="number" required value={editAreaSqft} onChange={e => setEditAreaSqft(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Locality *</label>
+                  <input type="text" required value={editLocality} onChange={e => setEditLocality(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>City *</label>
+                  <input type="text" required value={editCity} onChange={e => setEditCity(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Status *</label>
+                  <select required value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                    {PROPERTY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Furnishing Status</label>
+                  <select value={editFurnishing} onChange={e => setEditFurnishing(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                    <option value="">None</option>
+                    {FURNISHING_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Full Address</label>
+                <input type="text" value={editAddress} onChange={e => setEditAddress(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>RERA Number</label>
+                  <input type="text" value={editReraNumber} onChange={e => setEditReraNumber(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Latitude</label>
+                  <input type="number" step="any" value={editLat} onChange={e => setEditLat(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Longitude</label>
+                  <input type="number" step="any" value={editLng} onChange={e => setEditLng(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Description</label>
+                <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)', minHeight: 80 }} />
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Cloudinary Image IDs (comma-separated)</label>
+                <input type="text" value={editImages} onChange={e => setEditImages(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Floor Plan URL/ID</label>
+                <input type="text" value={editFloorPlanUrl} onChange={e => setEditFloorPlanUrl(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+
+              {editListingType === 'Rent' && (
+                <>
+                  <h3 style={{ fontSize: '1rem', marginTop: '0.5rem', borderBottom: '1px solid var(--sand)', paddingBottom: '0.25rem' }}>Rent Specifics</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Security Deposit</label>
+                      <input type="number" value={editSecurityDeposit} onChange={e => setEditSecurityDeposit(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Available From</label>
+                      <input type="text" placeholder="YYYY-MM-DD" value={editAvailableFrom} onChange={e => setEditAvailableFrom(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Preferred Tenant</label>
+                      <select value={editPreferredTenant} onChange={e => setEditPreferredTenant(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                        <option value="">None</option>
+                        {PREFERRED_TENANT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Maintenance Charges</label>
+                      <input type="number" value={editMaintenanceCharges} onChange={e => setEditMaintenanceCharges(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Lease Duration (Months)</label>
+                      <input type="number" value={editLeaseDuration} onChange={e => setEditLeaseDuration(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Lock-In Period (Months)</label>
+                      <input type="number" value={editLockInPeriod} onChange={e => setEditLockInPeriod(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>CAM Charges</label>
+                      <input type="number" value={editCamCharges} onChange={e => setEditCamCharges(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Plot Allowed Use</label>
+                      <select value={editPlotAllowedUse} onChange={e => setEditPlotAllowedUse(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                        <option value="">None</option>
+                        {PLOT_ALLOWED_USE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', height: '100%', paddingTop: '1.2rem' }}>
+                      <input type="checkbox" id="edit-pet-friendly" checked={editPetFriendly} onChange={e => setEditPetFriendly(e.target.checked)} style={{ cursor: 'pointer', width: 20, height: 20 }} />
+                      <label htmlFor="edit-pet-friendly" style={{ fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>Pet Friendly</label>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem', paddingBottom: '1rem' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowEdit(false)} disabled={editLoading}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={editLoading}>{editLoading ? 'Saving…' : 'Save Changes'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selected && (

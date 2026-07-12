@@ -47,6 +47,68 @@ export function Projects() {
   })
   const limit = 20
 
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false)
+  const [editProjectId, setEditProjectId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editCategory, setEditCategory] = useState('')
+  const [editLocation, setEditLocation] = useState('')
+  const [editAreaSqft, setEditAreaSqft] = useState('')
+  const [editDurationMonths, setEditDurationMonths] = useState('')
+  const [editPackageTier, setEditPackageTier] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editBeforeImages, setEditBeforeImages] = useState('')
+  const [editAfterImages, setEditAfterImages] = useState('')
+  const [editStageImages, setEditStageImages] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
+  function startEdit(p: ConstructionProject) {
+    setEditProjectId(p.id)
+    setEditTitle(p.title)
+    setEditCategory(p.category)
+    setEditLocation(p.location)
+    setEditAreaSqft(p.areaSqft !== undefined && p.areaSqft !== null ? String(p.areaSqft) : '')
+    setEditDurationMonths(p.durationMonths !== undefined && p.durationMonths !== null ? String(p.durationMonths) : '')
+    setEditPackageTier(p.packageTier || '')
+    setEditDescription(p.description || '')
+    setEditBeforeImages(p.beforeImages ? p.beforeImages.join(', ') : '')
+    setEditAfterImages(p.afterImages ? p.afterImages.join(', ') : '')
+    setEditStageImages(p.stageImages ? p.stageImages.join(', ') : '')
+    setEditError(null)
+    setShowEdit(true)
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editProjectId) return
+    setEditLoading(true)
+    setEditError(null)
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+      const updated = await api.patch<ConstructionProject>(`/projects/${editProjectId}`, {
+        title:          editTitle.trim() || undefined,
+        category:       editCategory || undefined,
+        location:       editLocation.trim() || undefined,
+        areaSqft:       editAreaSqft ? parseInt(editAreaSqft, 10) : null,
+        durationMonths: editDurationMonths ? parseInt(editDurationMonths, 10) : null,
+        packageTier:    editPackageTier || null,
+        description:    editDescription.trim() || null,
+        beforeImages:   editBeforeImages ? editBeforeImages.split(',').map(s => s.trim()).filter(Boolean) : [],
+        afterImages:    editAfterImages ? editAfterImages.split(',').map(s => s.trim()).filter(Boolean) : [],
+        stageImages:    editStageImages ? editStageImages.split(',').map(s => s.trim()).filter(Boolean) : [],
+      }, token)
+      setItems(prev => prev.map(p => p.id === editProjectId ? updated : p))
+      if (selected?.id === editProjectId) setSelected(updated)
+      setShowEdit(false)
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update project record')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   const buildQuery = useCallback((f: FilterState, p: number) => {
     const params = new URLSearchParams({ page: String(p), limit: String(limit) })
     if (f.agentId)      params.set('agentId', f.agentId)
@@ -195,6 +257,7 @@ export function Projects() {
                     <td>
                       <div className="action-group">
                         <button id={`btn-view-proj-${p.id}`} className="btn-action" onClick={() => setSelected(p)}>View</button>
+                        <button id={`btn-edit-proj-${p.id}`} className="btn-action" onClick={() => startEdit(p)}>Edit</button>
                         {p.reviewStatus !== 'reviewed' && (
                           <button id={`btn-review-proj-${p.id}`} className="btn-action btn-review" onClick={() => markReviewed(p.id)}>Review</button>
                         )}
@@ -217,6 +280,72 @@ export function Projects() {
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {showEdit && (
+        <div className="modal-backdrop" onClick={() => setShowEdit(false)}>
+          <div className="modal" style={{ maxWidth: 550 }} onClick={e => e.stopPropagation()}>
+            <h2>Edit Project Profile</h2>
+            {editError && <p style={{ color: 'var(--error)', margin: '0.5rem 0' }}>{editError}</p>}
+            <form onSubmit={handleEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Project Title *</label>
+                <input type="text" required value={editTitle} onChange={e => setEditTitle(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Category *</label>
+                  <select required value={editCategory} onChange={e => setEditCategory(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                    {PROJECT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Package Tier</label>
+                  <select value={editPackageTier} onChange={e => setEditPackageTier(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                    <option value="">None</option>
+                    {PACKAGE_TIERS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Location *</label>
+                  <input type="text" required value={editLocation} onChange={e => setEditLocation(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Area (Sqft)</label>
+                  <input type="number" value={editAreaSqft} onChange={e => setEditAreaSqft(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Duration (Months)</label>
+                  <input type="number" value={editDurationMonths} onChange={e => setEditDurationMonths(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Description</label>
+                <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)', minHeight: 80 }} />
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Before Images (comma-separated Cloudinary IDs)</label>
+                <input type="text" value={editBeforeImages} onChange={e => setEditBeforeImages(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>After Images (comma-separated Cloudinary IDs)</label>
+                <input type="text" value={editAfterImages} onChange={e => setEditAfterImages(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Stage Images (comma-separated Cloudinary IDs)</label>
+                <input type="text" value={editStageImages} onChange={e => setEditStageImages(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowEdit(false)} disabled={editLoading}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={editLoading}>{editLoading ? 'Saving…' : 'Save Changes'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selected && (

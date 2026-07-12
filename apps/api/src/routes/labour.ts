@@ -142,17 +142,39 @@ export default async function labourRoutes(app: FastifyInstance) {
     } catch { return reply.code(500).send({ error: 'Failed to update labour record' }) }
   })
 
-  // PATCH /labour/:id — admin updates reviewStatus
+  // PATCH /labour/:id — admin updates reviewStatus and other details
   app.patch('/labour/:id', { preHandler: requireAdmin,
-    schema: { tags: ['Labour'], summary: 'Update labour profile review status (admin)', security: [{ bearerAuth: [] }],
+    schema: { tags: ['Labour'], summary: 'Update labour profile review status and details (admin)', security: [{ bearerAuth: [] }],
       params: { type: 'object', properties: { id: {type:'string'} }, required: ['id'] },
-      body: { type: 'object', properties: { reviewStatus: {type:'string', enum:['pending','reviewed','deleted']} } }
+      body: { type: 'object', properties: {
+        reviewStatus: {type:'string', enum:['pending','reviewed','deleted']},
+        fullName: {type:'string'}, age: {type:'integer'}, gender: {type:'string'},
+        skillLevel: {type:'string'}, skillType: {type:'string'}, phone: {type:'string'},
+        profilePhotoUrl: {type:'string'}, houseNo: {type:'string'}, street: {type:'string'},
+        locality: {type:'string'}, city: {type:'string'}, pincode: {type:'string'},
+      } }
     }
   }, async (request, reply) => {
     const { id } = request.params as any
-    const { reviewStatus } = request.body as any
+    const body = request.body as any
+    const { reviewStatus, fullName, age, gender, skillLevel, skillType, phone,
+            profilePhotoUrl, houseNo, street, locality, city, pincode } = body
+    const data: any = {}
+    if (reviewStatus !== undefined) data.reviewStatus = reviewStatus
+    if (fullName !== undefined) data.fullName = fullName
+    if (age !== undefined) data.age = age
+    if (gender !== undefined) data.gender = gender
+    if (skillLevel !== undefined) data.skillLevel = skillLevel
+    if (skillType !== undefined) data.skillType = skillType
+    if (phone !== undefined) data.phone = phone
+    if (profilePhotoUrl !== undefined) data.profilePhotoUrl = profilePhotoUrl
+    if (houseNo !== undefined) data.houseNo = houseNo
+    if (street !== undefined) data.street = street
+    if (locality !== undefined) data.locality = locality
+    if (city !== undefined) data.city = city
+    if (pincode !== undefined) data.pincode = pincode
     try {
-      const row = await prisma.labour.update({ where: { id }, data: { reviewStatus },
+      const row = await prisma.labour.update({ where: { id }, data,
         include: { agent: { select: { id: true, name: true, email: true } } } })
       return serializeLabour(row)
     } catch { return reply.code(404).send({ error: 'Labour record not found' }) }

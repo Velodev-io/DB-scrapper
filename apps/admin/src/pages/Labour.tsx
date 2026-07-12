@@ -26,6 +26,74 @@ export function Labour() {
   })
   const limit = 20
 
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false)
+  const [editLabourId, setEditLabourId] = useState<string | null>(null)
+  const [editFullName, setEditFullName] = useState('')
+  const [editAge, setEditAge] = useState('')
+  const [editGender, setEditGender] = useState('')
+  const [editSkillLevel, setEditSkillLevel] = useState('')
+  const [editSkillType, setEditSkillType] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editProfilePhotoUrl, setEditProfilePhotoUrl] = useState('')
+  const [editHouseNo, setEditHouseNo] = useState('')
+  const [editStreet, setEditStreet] = useState('')
+  const [editLocality, setEditLocality] = useState('')
+  const [editCity, setEditCity] = useState('')
+  const [editPincode, setEditPincode] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
+  function startEdit(l: Labour) {
+    setEditLabourId(l.id)
+    setEditFullName(l.fullName)
+    setEditAge(String(l.age))
+    setEditGender(l.gender)
+    setEditSkillLevel(l.skillLevel)
+    setEditSkillType(l.skillType || '')
+    setEditPhone(l.phone)
+    setEditProfilePhotoUrl(l.profilePhotoUrl || '')
+    setEditHouseNo(l.houseNo || '')
+    setEditStreet(l.street || '')
+    setEditLocality(l.locality || '')
+    setEditCity(l.city || '')
+    setEditPincode(l.pincode || '')
+    setEditError(null)
+    setShowEdit(true)
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editLabourId) return
+    setEditLoading(true)
+    setEditError(null)
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+      const updated = await api.patch<Labour>(`/labour/${editLabourId}`, {
+        fullName:        editFullName.trim() || undefined,
+        age:             editAge ? parseInt(editAge, 10) : undefined,
+        gender:          editGender || undefined,
+        skillLevel:      editSkillLevel || undefined,
+        skillType:       editSkillType.trim() || null,
+        phone:           editPhone.trim() || undefined,
+        profilePhotoUrl: editProfilePhotoUrl.trim() || null,
+        houseNo:         editHouseNo.trim() || null,
+        street:          editStreet.trim() || null,
+        locality:        editLocality.trim() || null,
+        city:            editCity.trim() || null,
+        pincode:         editPincode.trim() || null,
+      }, token)
+      setItems(prev => prev.map(l => l.id === editLabourId ? updated : l))
+      if (selected?.id === editLabourId) setSelected(updated)
+      setShowEdit(false)
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update labour record')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   const buildQuery = useCallback((f: FilterState, p: number) => {
     const params = new URLSearchParams({ page: String(p), limit: String(limit) })
     if (f.agentId)      params.set('agentId', f.agentId)
@@ -193,6 +261,7 @@ export function Labour() {
                     <td>
                       <div className="action-group">
                         <button id={`btn-view-labour-${l.id}`} className="btn-action" onClick={() => setSelected(l)}>View</button>
+                        <button id={`btn-edit-labour-${l.id}`} className="btn-action" onClick={() => startEdit(l)}>Edit</button>
                         {l.reviewStatus !== 'reviewed' && (
                           <button id={`btn-review-labour-${l.id}`} className="btn-action btn-review" onClick={() => markReviewed(l.id)}>Review</button>
                         )}
@@ -244,6 +313,7 @@ export function Labour() {
                   </div>
                   <div className="mobile-card-actions">
                     <button id={`btn-view-labour-mob-${l.id}`} className="btn-action" onClick={() => setSelected(l)}>View</button>
+                    <button id={`btn-edit-labour-mob-${l.id}`} className="btn-action" onClick={() => startEdit(l)}>Edit</button>
                     {l.reviewStatus !== 'reviewed' && (
                       <button id={`btn-review-labour-mob-${l.id}`} className="btn-action btn-review" onClick={() => markReviewed(l.id)}>Review</button>
                     )}
@@ -264,6 +334,92 @@ export function Labour() {
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {showEdit && (
+        <div className="modal-backdrop" onClick={() => setShowEdit(false)}>
+          <div className="modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+            <h2>Edit Labour Profile</h2>
+            {editError && <p style={{ color: 'var(--error)', margin: '0.5rem 0' }}>{editError}</p>}
+            <form onSubmit={handleEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Full Name *</label>
+                <input type="text" required value={editFullName} onChange={e => setEditFullName(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Age *</label>
+                  <input type="number" required value={editAge} onChange={e => setEditAge(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Gender *</label>
+                  <select required value={editGender} onChange={e => setEditGender(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                    <option value="">Select Gender</option>
+                    {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Skill Level *</label>
+                  <select required value={editSkillLevel} onChange={e => setEditSkillLevel(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                    <option value="Skilled">Skilled</option>
+                    <option value="Non-Skilled">Non-Skilled</option>
+                  </select>
+                </div>
+                {editSkillLevel === 'Skilled' && (
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Skill Type</label>
+                    <select value={editSkillType} onChange={e => setEditSkillType(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }}>
+                      <option value="">Select Skill</option>
+                      {SKILL_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Phone *</label>
+                <input type="text" required value={editPhone} onChange={e => setEditPhone(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Profile Photo URL/Cloudinary Public ID</label>
+                <input type="text" value={editProfilePhotoUrl} onChange={e => setEditProfilePhotoUrl(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+              </div>
+              
+              <h3 style={{ fontSize: '1rem', marginTop: '0.5rem', borderBottom: '1px solid var(--sand)', paddingBottom: '0.25rem' }}>Address Details</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>House No</label>
+                  <input type="text" value={editHouseNo} onChange={e => setEditHouseNo(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Street</label>
+                  <input type="text" value={editStreet} onChange={e => setEditStreet(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Locality</label>
+                  <input type="text" value={editLocality} onChange={e => setEditLocality(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>City</label>
+                  <input type="text" value={editCity} onChange={e => setEditCity(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Pincode</label>
+                  <input type="text" value={editPincode} onChange={e => setEditPincode(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowEdit(false)} disabled={editLoading}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={editLoading}>{editLoading ? 'Saving…' : 'Save Changes'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selected && (

@@ -154,18 +154,40 @@ export default async function shopRoutes(app: FastifyInstance) {
     } catch { return reply.code(500).send({ error: 'Failed to update shop record' }) }
   })
 
-  // PATCH /shops/:id — admin updates reviewStatus
+  // PATCH /shops/:id — admin updates reviewStatus and other details
   app.patch('/shops/:id', { preHandler: requireAdmin,
-    schema: { tags: ['Shops'], summary: 'Update shop review status (admin)', security: [{ bearerAuth: [] }],
+    schema: { tags: ['Shops'], summary: 'Update shop review status and details (admin)', security: [{ bearerAuth: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
-      body:   { type: 'object', properties: { reviewStatus: { type: 'string', enum: ['pending', 'reviewed', 'deleted'] } } },
+      body:   { type: 'object', properties: {
+        reviewStatus: { type: 'string', enum: ['pending', 'reviewed', 'deleted'] },
+        shopName:    { type: 'string' },
+        shopType:    { type: 'string' },
+        keeperName:  { type: 'string' },
+        keeperPhone: { type: 'string' },
+        address:     { type: 'string' },
+        lat:         { type: 'number' },
+        lng:         { type: 'number' },
+        images:      { type: 'array', items: { type: 'string' } },
+      } },
     }
   }, async (request, reply) => {
     const { id } = request.params as any
-    const { reviewStatus } = request.body as any
+    const body = request.body as any
+    const { reviewStatus, shopName, shopType, keeperName, keeperPhone, address, lat, lng, images } = body
+    const data: any = {}
+    if (reviewStatus !== undefined) data.reviewStatus = reviewStatus
+    if (shopName !== undefined) data.shopName = shopName
+    if (shopType !== undefined) data.shopType = shopType
+    if (keeperName !== undefined) data.keeperName = keeperName
+    if (keeperPhone !== undefined) data.keeperPhone = keeperPhone
+    if (address !== undefined) data.address = address
+    if (lat !== undefined) data.lat = lat
+    if (lng !== undefined) data.lng = lng
+    if (images !== undefined) data.images = images
+
     try {
       const row = await prisma.shop.update({
-        where: { id }, data: { reviewStatus },
+        where: { id }, data,
         include: { agent: { select: { id: true, name: true, email: true } } },
       })
       return serializeShop(row)

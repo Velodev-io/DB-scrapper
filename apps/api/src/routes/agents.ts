@@ -30,6 +30,7 @@ export default async function agentRoutes(app: FastifyInstance) {
         phone:        dbAgent?.phone || u.phoneNumbers[0]?.phoneNumber || '',
         age:          dbAgent?.age ?? null,
         status:       dbAgent?.status || 'active',
+        imageUrl:     u.publicMetadata?.profilePhotoUrl || u.imageUrl || '',
         createdAt:    new Date(u.createdAt).toISOString(),
       }
     })
@@ -177,15 +178,19 @@ export default async function agentRoutes(app: FastifyInstance) {
       body: {
         type: 'object',
         properties: {
-          name:  { type: 'string' },
-          phone: { type: 'string' },
-          age:   { type: 'integer', minimum: 0, maximum: 120 }
+          name:            { type: 'string' },
+          phone:           { type: 'string' },
+          age:             { type: 'integer', minimum: 0, maximum: 120 },
+          email:           { type: 'string', format: 'email' },
+          profilePhotoUrl: { type: 'string' }
         }
       }
     }
   }, async (request, reply) => {
     const { clerkUserId } = request.params as { clerkUserId: string }
-    const { name, phone, age } = request.body as { name?: string, phone?: string, age?: number }
+    const { name, phone, age, email, profilePhotoUrl } = request.body as {
+      name?: string, phone?: string, age?: number, email?: string, profilePhotoUrl?: string
+    }
 
     try {
       const agent = await prisma.agent.findUnique({ where: { clerkUserId } })
@@ -195,7 +200,7 @@ export default async function agentRoutes(app: FastifyInstance) {
 
       // Fetch user profile from Clerk to get default email if not in database
       const user = await clerk.users.getUser(clerkUserId)
-      const email = user.emailAddresses[0]?.emailAddress ?? ''
+      const currentEmail = user.emailAddresses[0]?.emailAddress ?? ''
 
       const updated = await prisma.agent.upsert({
         where: { clerkUserId },
@@ -203,11 +208,12 @@ export default async function agentRoutes(app: FastifyInstance) {
           name:  name !== undefined ? name : undefined,
           phone: phone !== undefined ? phone : undefined,
           age:   age !== undefined ? age : undefined,
+          email: email !== undefined ? email : undefined,
         },
         create: {
           clerkUserId,
-          email,
-          name:  name ?? (`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || email),
+          email: email ?? currentEmail,
+          name:  name ?? (`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || email || currentEmail),
           phone: phone ?? user.phoneNumbers[0]?.phoneNumber ?? null,
           age:   age ?? null,
           status: 'active'
@@ -223,6 +229,32 @@ export default async function agentRoutes(app: FastifyInstance) {
           await clerk.users.updateUser(clerkUserId, { firstName, lastName })
         } catch (clerkErr) {
           app.log.warn({ err: clerkErr }, 'Failed to update user name in Clerk profile')
+        }
+      }
+
+      // Update email in Clerk if it changed
+      if (email && email !== currentEmail) {
+        try {
+          await clerk.emailAddresses.createEmailAddress({
+            userId: clerkUserId,
+            emailAddress: email,
+            verified: true,
+            primary: true
+          })
+        } catch (clerkErr: any) {
+          app.log.warn({ err: clerkErr }, 'Failed to update email address in Clerk')
+          return reply.code(400).send({ error: clerkErr.message || 'Failed to update email address in Clerk' })
+        }
+      }
+
+      // Update profilePhotoUrl in Clerk publicMetadata if it changed
+      if (profilePhotoUrl !== undefined) {
+        try {
+          await clerk.users.updateUserMetadata(clerkUserId, {
+            publicMetadata: { profilePhotoUrl: profilePhotoUrl || null }
+          })
+        } catch (clerkErr: any) {
+          app.log.warn({ err: clerkErr }, 'Failed to update profile photo URL in Clerk metadata')
         }
       }
 
