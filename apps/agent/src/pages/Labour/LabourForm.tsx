@@ -17,6 +17,7 @@ interface FormState {
   gender: string
   skillLevel: string
   skillType: string
+  otherSkillType: string  // free-text when skillType === 'Other'
   phone: string
   houseNo: string
   street: string
@@ -31,6 +32,7 @@ const initialForm: FormState = {
   gender: 'Male',
   skillLevel: 'Non-Skilled',
   skillType: 'Mason / Bricklayer',
+  otherSkillType: '',
   phone: '',
   houseNo: '',
   street: '',
@@ -84,6 +86,13 @@ export function LabourForm() {
           await updateRecordId(queuedPhotoLocalId, tempId)
         }
 
+        // Resolve skillType: 'Other' → 'Other: <custom text>' so the DB stores meaningful data
+        const resolvedSkillType = form.skillLevel === 'Skilled'
+          ? (form.skillType === 'Other'
+              ? (form.otherSkillType.trim() ? `Other: ${form.otherSkillType.trim()}` : 'Other')
+              : form.skillType)
+          : null
+
         await enqueuePendingRecord({
           id: tempId,
           type: 'labour',
@@ -93,7 +102,7 @@ export function LabourForm() {
             age: ageVal,
             gender: form.gender,
             skillLevel: form.skillLevel,
-            skillType: form.skillLevel === 'Skilled' ? form.skillType : null,
+            skillType: resolvedSkillType,
             phone: form.phone,
             profilePhotoUrl: queuedPhotoLocalId, // bare UUID
             houseNo: form.houseNo || null,
@@ -116,13 +125,20 @@ export function LabourForm() {
 
       const profilePhotoUrl = allProfilePhotoUrls.find(id => !id.startsWith('__queued__:')) ?? null
 
+      // Resolve skillType: 'Other' → 'Other: <custom text>' so the DB stores meaningful data
+      const resolvedSkillType = form.skillLevel === 'Skilled'
+        ? (form.skillType === 'Other'
+            ? (form.otherSkillType.trim() ? `Other: ${form.otherSkillType.trim()}` : 'Other')
+            : form.skillType)
+        : null
+
       const payload = {
         id: recordId,
         fullName: form.fullName,
         age: ageVal,
         gender: form.gender,
         skillLevel: form.skillLevel,
-        skillType: form.skillLevel === 'Skilled' ? form.skillType : null,
+        skillType: resolvedSkillType,
         phone: form.phone,
         profilePhotoUrl,
         houseNo: form.houseNo || null,
@@ -224,6 +240,18 @@ export function LabourForm() {
                 </option>
               ))}
             </select>
+            {/* Free-text input revealed only when 'Other' is selected */}
+            {form.skillType === 'Other' && (
+              <input
+                type="text"
+                className="form-input"
+                style={{ marginTop: '0.5rem' }}
+                value={form.otherSkillType}
+                onChange={(e) => update({ otherSkillType: e.target.value })}
+                placeholder="Describe the skill (e.g. Scaffolding, Glass Fitter…)"
+                required
+              />
+            )}
           </div>
         )}
 

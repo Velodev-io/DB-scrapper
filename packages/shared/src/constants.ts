@@ -8,6 +8,7 @@ export const SKILL_TYPES = [
   'Tile Setter / Flooring',
   'Roofer',
   'Civil Helper / General Labour',
+  'Other',
 ] as const
 
 export type SkillType = typeof SKILL_TYPES[number]
