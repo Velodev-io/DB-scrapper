@@ -37,6 +37,7 @@ export function serializeProperty(row: any): Property {
     lat: row.lat ?? undefined,
     lng: row.lng ?? undefined,
     reviewStatus: row.reviewStatus,
+    published: row.published,
     agentId: row.agentId,
     agent: row.agent ? {
       id: row.agent.id,
@@ -72,7 +73,8 @@ export function serializeProject(row: any): ConstructionProject {
     afterImages:  Array.isArray(row.afterImages)  ? row.afterImages  : [],
     stageImages:  Array.isArray(row.stageImages)  ? row.stageImages  : [],
     reviewStatus: row.reviewStatus,
-    agentId: row.agentId,
+    published:    row.published,
+    agentId:      row.agentId,
     agent: row.agent ? { id: row.agent.id, name: row.agent.name, email: row.agent.email } : undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

@@ -40,6 +40,7 @@ model Agent {
 
 model Property {
   id           String   @id @default(cuid())
+  slug         String?  @unique
   title        String
   propertyType String // "Apartment" | "Villa" | "Plot" | "Commercial"
   listingType  String // "Sale" | "Resale" | "Under Construction"
@@ -56,9 +57,13 @@ model Property {
   description  String?
   images       String[] @default([]) // Cloudinary public IDs (Postgres native array)
   floorPlanUrl String? // single Cloudinary public ID
+  videoUrl     String?
+  featured     Boolean  @default(false)
+  amenities    String[] @default([])
   lat          Float?
   lng          Float?
   reviewStatus String   @default("pending") // "pending" | "reviewed" | "deleted"
+  published    Boolean  @default(false)
 
   // Rent-specific fields (all optional)
   securityDeposit    Int?
@@ -87,6 +92,7 @@ model Property {
 
 model ConstructionProject {
   id             String   @id @default(cuid())
+  slug           String?  @unique
   title          String
   category       String // "Turnkey Villa" | "Renovation" | "Interior" | "Commercial Build"
   location       String
@@ -98,6 +104,7 @@ model ConstructionProject {
   afterImages    String[] @default([])
   stageImages    String[] @default([])
   reviewStatus   String   @default("pending")
+  published      Boolean  @default(false)
 
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])

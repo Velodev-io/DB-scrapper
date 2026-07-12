@@ -60,6 +60,7 @@ export function Properties() {
   const [editLockInPeriod, setEditLockInPeriod] = useState('')
   const [editCamCharges, setEditCamCharges] = useState('')
   const [editPlotAllowedUse, setEditPlotAllowedUse] = useState('')
+  const [editPublished, setEditPublished] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -92,6 +93,7 @@ export function Properties() {
     setEditLockInPeriod(p.lockInPeriod !== undefined && p.lockInPeriod !== null ? String(p.lockInPeriod) : '')
     setEditCamCharges(p.camCharges !== undefined && p.camCharges !== null ? String(p.camCharges) : '')
     setEditPlotAllowedUse(p.plotAllowedUse || '')
+    setEditPublished(p.published || false)
     setEditError(null)
     setShowEdit(true)
   }
@@ -124,6 +126,7 @@ export function Properties() {
         floorPlanUrl:       editFloorPlanUrl.trim() || null,
         lat:                editLat ? parseFloat(editLat) : null,
         lng:                editLng ? parseFloat(editLng) : null,
+        published:          editPublished,
       }
 
       if (editListingType === 'Rent') {
@@ -189,6 +192,15 @@ export function Properties() {
     await api.patch(`/properties/${id}`, { reviewStatus: 'reviewed' }, token)
     setItems(prev => prev.map(p => p.id === id ? { ...p, reviewStatus: 'reviewed' } : p))
     if (selected?.id === id) setSelected(s => s ? { ...s, reviewStatus: 'reviewed' } : s)
+  }
+
+  async function togglePublished(id: string, currentPublished: boolean) {
+    const token = await getToken()
+    if (!token) return
+    const newPublished = !currentPublished
+    await api.patch(`/properties/${id}`, { published: newPublished }, token)
+    setItems(prev => prev.map(p => p.id === id ? { ...p, published: newPublished } : p))
+    if (selected?.id === id) setSelected(s => s ? { ...s, published: newPublished } : s)
   }
 
   async function deleteRecord(id: string) {
@@ -306,7 +318,12 @@ export function Properties() {
                     <td style={{ fontSize: '0.8rem', color: 'var(--concrete)', whiteSpace: 'nowrap' }}>
                       {new Date(p.createdAt).toLocaleDateString()}
                     </td>
-                    <td><span className={`status-pill ${p.reviewStatus}`}>{p.reviewStatus}</span></td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span className={`status-pill ${p.reviewStatus}`}>{p.reviewStatus}</span>
+                        {p.published && <span className="status-pill reviewed" style={{ fontSize: '0.7rem' }}>Published</span>}
+                      </div>
+                    </td>
                     <td>
                       <div className="action-group">
                         <button
@@ -356,7 +373,10 @@ export function Properties() {
                       <div className="mobile-card-title">{p.title}</div>
                       <div className="mobile-card-subtitle">{p.propertyType} • {p.listingType}</div>
                     </div>
-                    <span className={`status-pill ${p.reviewStatus}`}>{p.reviewStatus}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-end' }}>
+                      <span className={`status-pill ${p.reviewStatus}`}>{p.reviewStatus}</span>
+                      {p.published && <span className="status-pill reviewed" style={{ fontSize: '0.7rem' }}>Published</span>}
+                    </div>
                   </div>
                   <div className="mobile-card-body">
                     <div className="mobile-card-field">
@@ -566,6 +586,11 @@ export function Properties() {
                 </>
               )}
 
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem', borderTop: '1px solid var(--sand)', paddingTop: '1rem' }}>
+                <input type="checkbox" id="edit-published" checked={editPublished} onChange={e => setEditPublished(e.target.checked)} style={{ cursor: 'pointer', width: 20, height: 20 }} />
+                <label htmlFor="edit-published" style={{ fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>Publish to Website (Visible on Public Frontend)</label>
+              </div>
+
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem', paddingBottom: '1rem' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowEdit(false)} disabled={editLoading}>Cancel</button>
                 <button type="submit" className="btn-primary" disabled={editLoading}>{editLoading ? 'Saving…' : 'Save Changes'}</button>
@@ -643,6 +668,12 @@ export function Properties() {
               <div className="detail-item">
                 <span className="detail-label">Review Status</span>
                 <span className={`status-pill ${selected.reviewStatus}`}>{selected.reviewStatus}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Publish Status</span>
+                <span className={`status-pill ${selected.published ? 'reviewed' : 'pending'}`}>
+                  {selected.published ? 'Published' : 'Hidden / Draft'}
+                </span>
               </div>
 
               {selected.listingType === 'Rent' && (
@@ -791,6 +822,17 @@ export function Properties() {
                 {downloadingZip ? 'Downloading ZIP…' : '⬇ Download All (ZIP)'}
               </button>
               <button className="btn-secondary" onClick={() => setSelected(null)}>Close</button>
+              <button
+                className="btn-secondary"
+                style={{
+                  backgroundColor: selected.published ? 'var(--concrete)' : 'var(--ochre)',
+                  color: 'white',
+                  border: 'none',
+                }}
+                onClick={() => togglePublished(selected.id, selected.published || false)}
+              >
+                {selected.published ? 'Unpublish' : 'Publish to Web'}
+              </button>
               {selected.reviewStatus !== 'reviewed' && (
                 <button
                   className="btn-primary"

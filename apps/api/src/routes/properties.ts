@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify'
+import crypto from 'crypto'
 import { prisma } from '../lib/prisma.js'
 import { requireAgent, requireAdmin, getOrCreateAgent } from '../lib/auth.js'
 import { serializeProperty } from '../lib/serialize.js'
@@ -42,7 +43,13 @@ export default async function propertyRoutes(app: FastifyInstance) {
             securityDeposit, availableFrom, preferredTenant, petFriendly, maintenanceCharges,
             leaseDuration, lockInPeriod, camCharges, plotAllowedUse } = body
 
+    const id = clientId || crypto.randomBytes(12).toString('hex')
+    const cleanSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    const slug = `${cleanSlug}-${id.slice(-4)}`
+
     const data: any = {
+      id,
+      slug,
       title, propertyType, listingType, bhk, priceInr, priceLabel, areaSqft,
       locality, city, address, reraNumber, status, furnishing, description,
       images: images ?? [], floorPlanUrl, lat, lng, agentId, reviewStatus: 'pending',
@@ -177,6 +184,7 @@ export default async function propertyRoutes(app: FastifyInstance) {
       params: { type: 'object', properties: { id: {type:'string'} }, required: ['id'] },
       body: { type: 'object', properties: {
         reviewStatus: {type:'string', enum:['pending','reviewed','deleted']},
+        published: {type:'boolean'},
         title: {type:'string'}, propertyType: {type:'string'}, listingType: {type:'string'},
         bhk: {type:'integer'}, priceInr: {type:'integer'}, priceLabel: {type:'string'},
         areaSqft: {type:'integer'}, locality: {type:'string'}, city: {type:'string'},
@@ -194,7 +202,7 @@ export default async function propertyRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     const { id } = request.params as any
     const body = request.body as any
-    const { reviewStatus, title, propertyType, listingType, bhk, priceInr, priceLabel,
+    const { reviewStatus, published, title, propertyType, listingType, bhk, priceInr, priceLabel,
             areaSqft, locality, city, address, reraNumber, status, furnishing,
             description, images, floorPlanUrl, lat, lng,
             securityDeposit, availableFrom, preferredTenant, petFriendly, maintenanceCharges,
@@ -202,7 +210,11 @@ export default async function propertyRoutes(app: FastifyInstance) {
     
     const data: any = {}
     if (reviewStatus !== undefined) data.reviewStatus = reviewStatus
-    if (title !== undefined) data.title = title
+    if (published !== undefined) data.published = published
+    if (title !== undefined) {
+      data.title = title
+      data.slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + id.slice(-4)
+    }
     if (propertyType !== undefined) data.propertyType = propertyType
     if (listingType !== undefined) data.listingType = listingType
     if (bhk !== undefined) data.bhk = bhk

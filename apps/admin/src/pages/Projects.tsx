@@ -60,6 +60,7 @@ export function Projects() {
   const [editBeforeImages, setEditBeforeImages] = useState('')
   const [editAfterImages, setEditAfterImages] = useState('')
   const [editStageImages, setEditStageImages] = useState('')
+  const [editPublished, setEditPublished] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -75,6 +76,7 @@ export function Projects() {
     setEditBeforeImages(p.beforeImages ? p.beforeImages.join(', ') : '')
     setEditAfterImages(p.afterImages ? p.afterImages.join(', ') : '')
     setEditStageImages(p.stageImages ? p.stageImages.join(', ') : '')
+    setEditPublished(p.published || false)
     setEditError(null)
     setShowEdit(true)
   }
@@ -98,6 +100,7 @@ export function Projects() {
         beforeImages:   editBeforeImages ? editBeforeImages.split(',').map(s => s.trim()).filter(Boolean) : [],
         afterImages:    editAfterImages ? editAfterImages.split(',').map(s => s.trim()).filter(Boolean) : [],
         stageImages:    editStageImages ? editStageImages.split(',').map(s => s.trim()).filter(Boolean) : [],
+        published:      editPublished,
       }, token)
       setItems(prev => prev.map(p => p.id === editProjectId ? updated : p))
       if (selected?.id === editProjectId) setSelected(updated)
@@ -148,6 +151,15 @@ export function Projects() {
     await api.patch(`/projects/${id}`, { reviewStatus: 'reviewed' }, token)
     setItems(prev => prev.map(p => p.id === id ? { ...p, reviewStatus: 'reviewed' } : p))
     if (selected?.id === id) setSelected(s => s ? { ...s, reviewStatus: 'reviewed' } : s)
+  }
+
+  async function togglePublished(id: string, currentPublished: boolean) {
+    const token = await getToken()
+    if (!token) return
+    const newPublished = !currentPublished
+    await api.patch(`/projects/${id}`, { published: newPublished }, token)
+    setItems(prev => prev.map(p => p.id === id ? { ...p, published: newPublished } : p))
+    if (selected?.id === id) setSelected(s => s ? { ...s, published: newPublished } : s)
   }
 
   async function deleteRecord(id: string) {
@@ -253,7 +265,12 @@ export function Projects() {
                     <td style={{ fontSize: '0.8rem', color: 'var(--concrete)', whiteSpace: 'nowrap' }}>
                       {new Date(p.createdAt).toLocaleDateString()}
                     </td>
-                    <td><span className={`status-pill ${p.reviewStatus}`}>{p.reviewStatus}</span></td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span className={`status-pill ${p.reviewStatus}`}>{p.reviewStatus}</span>
+                        {p.published && <span className="status-pill reviewed" style={{ fontSize: '0.7rem' }}>Published</span>}
+                      </div>
+                    </td>
                     <td>
                       <div className="action-group">
                         <button id={`btn-view-proj-${p.id}`} className="btn-action" onClick={() => setSelected(p)}>View</button>
@@ -338,6 +355,11 @@ export function Projects() {
                 <input type="text" value={editStageImages} onChange={e => setEditStageImages(e.target.value)} style={{ padding: '0.5rem', borderRadius: 4, border: '1px solid var(--sand)' }} />
               </div>
 
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem', borderTop: '1px solid var(--sand)', paddingTop: '1rem' }}>
+                <input type="checkbox" id="edit-published" checked={editPublished} onChange={e => setEditPublished(e.target.checked)} style={{ cursor: 'pointer', width: 20, height: 20 }} />
+                <label htmlFor="edit-published" style={{ fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>Publish to Website (Visible on Public Frontend)</label>
+              </div>
+
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowEdit(false)} disabled={editLoading}>Cancel</button>
                 <button type="submit" className="btn-primary" disabled={editLoading}>{editLoading ? 'Saving…' : 'Save Changes'}</button>
@@ -388,6 +410,12 @@ export function Projects() {
                 <span className="detail-label">Review Status</span>
                 <span className={`status-pill ${selected.reviewStatus}`}>{selected.reviewStatus}</span>
               </div>
+              <div className="detail-item">
+                <span className="detail-label">Publish Status</span>
+                <span className={`status-pill ${selected.published ? 'reviewed' : 'pending'}`}>
+                  {selected.published ? 'Published' : 'Hidden / Draft'}
+                </span>
+              </div>
               {selected.description && (
                 <div className="detail-item detail-value-full">
                   <span className="detail-label">Description</span>
@@ -412,6 +440,17 @@ export function Projects() {
                 {downloadingZip ? 'Downloading ZIP…' : '⬇ Download All (ZIP)'}
               </button>
               <button className="btn-secondary" onClick={() => setSelected(null)}>Close</button>
+              <button
+                className="btn-secondary"
+                style={{
+                  backgroundColor: selected.published ? 'var(--concrete)' : 'var(--ochre)',
+                  color: 'white',
+                  border: 'none',
+                }}
+                onClick={() => togglePublished(selected.id, selected.published || false)}
+              >
+                {selected.published ? 'Unpublish' : 'Publish to Web'}
+              </button>
               {selected.reviewStatus !== 'reviewed' && (
                 <button className="btn-primary" onClick={() => markReviewed(selected.id)}>Mark Reviewed</button>
               )}

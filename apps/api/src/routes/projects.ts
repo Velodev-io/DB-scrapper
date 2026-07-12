@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify'
+import crypto from 'crypto'
 import { prisma } from '../lib/prisma.js'
 import { requireAgent, requireAdmin, getOrCreateAgent } from '../lib/auth.js'
 import { serializeProject } from '../lib/serialize.js'
@@ -28,8 +29,14 @@ export default async function projectRoutes(app: FastifyInstance) {
     const { title, category, location, areaSqft, durationMonths, packageTier,
             description, beforeImages, afterImages, stageImages } = body
 
+    const id = crypto.randomBytes(12).toString('hex')
+    const cleanSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    const slug = `${cleanSlug}-${id.slice(-4)}`
+
     const row = await prisma.constructionProject.create({
       data: {
+        id,
+        slug,
         title, category, location, areaSqft, durationMonths, packageTier, description,
         beforeImages: beforeImages ?? [],
         afterImages:  afterImages  ?? [],
@@ -91,6 +98,7 @@ export default async function projectRoutes(app: FastifyInstance) {
       params: { type: 'object', properties: { id: {type:'string'} }, required: ['id'] },
       body: { type: 'object', properties: {
         reviewStatus: {type:'string', enum:['pending','reviewed','deleted']},
+        published: {type:'boolean'},
         title: {type:'string'}, category: {type:'string'}, location: {type:'string'},
         areaSqft: {type:'integer'}, durationMonths: {type:'integer'}, packageTier: {type:'string'},
         description: {type:'string'},
@@ -102,11 +110,15 @@ export default async function projectRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     const { id } = request.params as any
     const body = request.body as any
-    const { reviewStatus, title, category, location, areaSqft, durationMonths, packageTier, description,
+    const { reviewStatus, published, title, category, location, areaSqft, durationMonths, packageTier, description,
             beforeImages, afterImages, stageImages } = body
     const data: any = {}
     if (reviewStatus !== undefined) data.reviewStatus = reviewStatus
-    if (title !== undefined) data.title = title
+    if (published !== undefined) data.published = published
+    if (title !== undefined) {
+      data.title = title
+      data.slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + id.slice(-4)
+    }
     if (category !== undefined) data.category = category
     if (location !== undefined) data.location = location
     if (areaSqft !== undefined) data.areaSqft = areaSqft

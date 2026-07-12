@@ -45,6 +45,7 @@ export interface Property {
   lat?:         number
   lng?:         number
   reviewStatus: ReviewStatus
+  published?:   boolean
   agentId:      string
   agent?:       Pick<Agent, 'id' | 'name' | 'email'>
   createdAt:    string
@@ -75,6 +76,7 @@ export interface ConstructionProject {
   afterImages:    string[]
   stageImages:    string[]
   reviewStatus:   ReviewStatus
+  published?:     boolean
   agentId:        string
   agent?:         Pick<Agent, 'id' | 'name' | 'email'>
   createdAt:      string
