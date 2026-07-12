@@ -91,6 +91,22 @@ export interface Labour {
   updatedAt:       string
 }
 
+export interface Shop {
+  id:           string
+  shopName:     string
+  shopType:     string             // free-text: "Cement", "Bricks", etc.
+  keeperName:   string
+  keeperPhone:  string
+  address?:     string
+  lat?:         number
+  lng?:         number
+  reviewStatus: ReviewStatus
+  agentId:      string
+  agent?:       Pick<Agent, 'id' | 'name' | 'email'>
+  createdAt:    string
+  updatedAt:    string
+}
+
 // ── API Responses ──────────────────────────────────────────────────────
 
 export interface Paginated<T> {

@@ -41,3 +41,22 @@ export function formatPriceLabel(priceInr: number): string {
   }
   return `₹${priceInr.toLocaleString('en-IN')}`
 }
+
+// Shop type suggestions (agent can type any free-text value)
+export const SHOP_TYPES = [
+  'Cement',
+  'Bricks',
+  'Sand / Aggregate',
+  'Steel / TMT Bars',
+  'Hardware & Tools',
+  'Tiles & Flooring',
+  'Plumbing Supplies',
+  'Electrical Supplies',
+  'Paint & Chemicals',
+  'Glass & Aluminum',
+  'Wood & Timber',
+  'General Construction',
+  'Other',
+] as const
+
+export type ShopType = typeof SHOP_TYPES[number]

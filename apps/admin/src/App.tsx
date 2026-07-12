@@ -6,6 +6,7 @@ import { Agents } from './pages/Agents'
 import { Properties } from './pages/Properties'
 // import { Projects } from './pages/Projects'
 import { Labour } from './pages/Labour'
+import { Shops } from './pages/Shops'
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user } = useUser()
@@ -42,6 +43,7 @@ export default function App() {
                 <Route path="/properties" element={<Properties />} />
                 {/* <Route path="/projects"   element={<Projects />} /> */}
                 <Route path="/labour"     element={<Labour />} />
+                <Route path="/shops"      element={<Shops />} />
               </Routes>
             </main>
           </div>

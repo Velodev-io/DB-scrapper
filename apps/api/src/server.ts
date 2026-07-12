@@ -9,6 +9,7 @@ import healthRoutes from './routes/health.js'
 import propertyRoutes from './routes/properties.js'
 import projectRoutes from './routes/projects.js'
 import labourRoutes from './routes/labour.js'
+import shopRoutes from './routes/shops.js'
 import agentRoutes from './routes/agents.js'
 import uploadsRoutes from './routes/uploads.js'
 import webhookRoutes from './routes/webhooks.js'
@@ -84,6 +85,7 @@ export async function buildApp() {
           { name: 'Properties', description: 'Property data collection' },
           { name: 'Projects',   description: 'Construction project data collection' },
           { name: 'Labour',     description: 'Labour worker profiles' },
+          { name: 'Shops',      description: 'Shop / vendor records near sites' },
           { name: 'Agents',     description: 'Agent user management (admin only)' },
           { name: 'Uploads',    description: 'Cloudinary signed upload management' },
         ],
@@ -111,6 +113,7 @@ export async function buildApp() {
     await api.register(propertyRoutes)
     await api.register(projectRoutes)
     await api.register(labourRoutes)
+    await api.register(shopRoutes)
     await api.register(agentRoutes)
     await api.register(uploadsRoutes)
     await api.register(webhookRoutes)

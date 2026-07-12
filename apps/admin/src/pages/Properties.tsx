@@ -312,16 +312,31 @@ export function Properties() {
                 </div>
               )}
               {selected.lat && selected.lng && (
-                <div className="detail-item detail-value-full">
-                  <a
-                    href={`https://maps.google.com/?q=${selected.lat},${selected.lng}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: 'var(--ochre)', fontWeight: 500 }}
-                  >
-                    📍 View on Google Maps
-                  </a>
-                </div>
+                <>
+                  <div className="detail-item detail-value-full">
+                    <a
+                      href={`https://maps.google.com/?q=${selected.lat},${selected.lng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: 'var(--ochre)', fontWeight: 500 }}
+                    >
+                      📍 View on Google Maps
+                    </a>
+                  </div>
+                  <div className="detail-item detail-value-full" style={{ marginTop: '0.25rem' }}>
+                    <div style={{ width: '100%', height: '220px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--sand)' }}>
+                      <iframe
+                        src={`https://maps.google.com/maps?q=${selected.lat},${selected.lng}&z=15&output=embed`}
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        allowFullScreen={false}
+                        loading="lazy"
+                        title="Location Map"
+                      ></iframe>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 

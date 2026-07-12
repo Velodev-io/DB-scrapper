@@ -3,7 +3,7 @@ import { openDB } from 'idb'
 export interface PendingUpload {
   id?:       number
   localId:   string
-  model:     'property' | 'project' | 'labour'
+  model:     'property' | 'project' | 'labour' | 'shop'
   recordId:  string
   fieldName: string
   blob:      Blob
@@ -16,7 +16,7 @@ export interface PendingUpload {
 
 export interface PendingRecord {
   id:        string
-  type:      'property' | 'labour'
+  type:      'property' | 'labour' | 'shop'
   payload:   any
   createdAt: number
 }
@@ -240,7 +240,10 @@ export async function flushPendingRecordsForeground() {
         if (!allPhotosReady) continue
 
         // Submit finalized form payload to backend
-        const endpoint = record.type === 'property' ? '/properties' : '/labour'
+        let endpoint: string
+        if (record.type === 'property')  endpoint = '/properties'
+        else if (record.type === 'shop') endpoint = '/shops'
+        else                             endpoint = '/labour'
         const res = await fetch(`${base}${endpoint}`, {
           method: 'POST',
           headers: {

@@ -30,6 +30,7 @@ model Agent {
   properties Property[]
   projects   ConstructionProject[]
   labour     Labour[]
+  shops      Shop[]
 
   @@index([clerkUserId])
   @@map("agents")
@@ -130,4 +131,29 @@ model Labour {
   @@index([reviewStatus])
   @@index([city, skillLevel])
   @@map("labour")
+}
+
+// ── Shop ────────────────────────────────────────────────────────────────
+
+model Shop {
+  id          String  @id @default(cuid())
+  shopName    String
+  shopType    String                    // free-text: "Cement", "Bricks", etc.
+  keeperName  String
+  keeperPhone String
+  address     String?
+  lat         Float?
+  lng         Float?
+  reviewStatus String  @default("pending") // "pending" | "reviewed" | "deleted"
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([reviewStatus])
+  @@index([shopType])
+  @@map("shops")
 }

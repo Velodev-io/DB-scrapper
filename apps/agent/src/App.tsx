@@ -9,6 +9,8 @@ import { PropertyList } from './pages/Properties/PropertyList'
 // import { ProjectList } from './pages/Projects/ProjectList'
 import { LabourForm } from './pages/Labour/LabourForm'
 import { LabourList } from './pages/Labour/LabourList'
+import { ShopForm } from './pages/Shops/ShopForm'
+import { ShopList } from './pages/Shops/ShopList'
 import { Profile } from './pages/Profile'
 import { flushUploadQueueForeground, flushPendingRecordsForeground } from './lib/uploadQueue'
 
@@ -99,6 +101,8 @@ export default function App() {
             {/* <Route path="/projects"       element={<ProjectList />} /> */}
             <Route path="/labour/new"     element={<LabourForm />} />
             <Route path="/labour"         element={<LabourList />} />
+            <Route path="/shops/new"      element={<ShopForm />} />
+            <Route path="/shops"          element={<ShopList />} />
             <Route path="/profile"        element={<Profile />} />
           </Routes>
           <BottomNav />

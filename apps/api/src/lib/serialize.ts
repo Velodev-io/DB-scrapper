@@ -1,4 +1,4 @@
-import type { Property, ConstructionProject, Labour, Agent } from '@carry/shared'
+import type { Property, ConstructionProject, Labour, Agent, Shop } from '@carry/shared'
 
 // For PostgreSQL, Prisma returns native arrays — these functions ensure
 // the API always returns the correct shape matching the shared types.
@@ -89,5 +89,23 @@ export function serializeLabour(row: any): Labour {
     agent: row.agent ? { id: row.agent.id, name: row.agent.name, email: row.agent.email } : undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+export function serializeShop(row: any): Shop {
+  return {
+    id:          row.id,
+    shopName:    row.shopName,
+    shopType:    row.shopType,
+    keeperName:  row.keeperName,
+    keeperPhone: row.keeperPhone,
+    address:     row.address ?? undefined,
+    lat:         row.lat ?? undefined,
+    lng:         row.lng ?? undefined,
+    reviewStatus: row.reviewStatus,
+    agentId:     row.agentId,
+    agent: row.agent ? { id: row.agent.id, name: row.agent.name, email: row.agent.email } : undefined,
+    createdAt:   row.createdAt.toISOString(),
+    updatedAt:   row.updatedAt.toISOString(),
   }
 }

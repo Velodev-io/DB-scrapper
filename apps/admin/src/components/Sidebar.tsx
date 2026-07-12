@@ -4,6 +4,7 @@ const navItems = [
   { to: '/properties', icon: '🏠', label: 'Properties' },
   // { to: '/projects',   icon: '🏗',  label: 'Projects' },
   { to: '/labour',     icon: '👷', label: 'Labour' },
+  { to: '/shops',      icon: '🏪', label: 'Shops' },
   { to: '/agents',     icon: '👥', label: 'Agents' },
 ]
 
