@@ -17,7 +17,7 @@
     "db:migrate": "npm run prisma:migrate -w apps/api",
     "deploy:agent": "npm run build -w apps/agent && cd apps/agent && firebase deploy --only hosting",
     "deploy:admin": "npm run build -w apps/admin && cd apps/admin && firebase deploy --only hosting",
-    "deploy:api":   "cd apps/api && vercel --prod",
+    "deploy:api":   "vercel --prod --yes",
     "deploy:all":   "npm run deploy:agent && npm run deploy:admin && npm run deploy:api",
     "vercel-build": "npm run vercel-build -w apps/api"
   },
