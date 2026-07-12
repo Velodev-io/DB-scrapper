@@ -203,6 +203,55 @@ export function Labour() {
                 ))}
               </tbody>
             </table>
+
+            <div className="mobile-card-list">
+              {items.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>
+                  No records
+                </div>
+              )}
+              {items.map(l => (
+                <div key={l.id} className="mobile-card">
+                  <div className="mobile-card-header">
+                    {l.profilePhotoUrl ? (
+                      <img className="mobile-card-thumb" src={img.thumb(l.profilePhotoUrl)} alt={l.fullName} />
+                    ) : (
+                      <div className="mobile-card-thumb-placeholder">👤</div>
+                    )}
+                    <div className="mobile-card-title-group">
+                      <div className="mobile-card-title">{l.fullName}</div>
+                      <div className="mobile-card-subtitle">{l.skillLevel} • {l.skillType || 'General'}</div>
+                    </div>
+                    <span className={`status-pill ${l.reviewStatus}`}>{l.reviewStatus}</span>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-field">
+                      <span className="field-label">Demographics:</span>
+                      <span className="field-val">{l.age} yrs • {l.gender}</span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">Phone:</span>
+                      <span className="field-val">{l.phone}</span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">City:</span>
+                      <span className="field-val">{l.city || '—'}</span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">Agent:</span>
+                      <span className="field-val">{l.agent?.name ?? '—'}</span>
+                    </div>
+                  </div>
+                  <div className="mobile-card-actions">
+                    <button id={`btn-view-labour-mob-${l.id}`} className="btn-action" onClick={() => setSelected(l)}>View</button>
+                    {l.reviewStatus !== 'reviewed' && (
+                      <button id={`btn-review-labour-mob-${l.id}`} className="btn-action btn-review" onClick={() => markReviewed(l.id)}>Review</button>
+                    )}
+                    <button id={`btn-delete-labour-mob-${l.id}`} className="btn-action btn-delete" onClick={() => deleteRecord(l.id)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="pagination">
               <span className="pagination-info">
                 Page {page} of {Math.ceil(total / limit) || 1} ({total} total)

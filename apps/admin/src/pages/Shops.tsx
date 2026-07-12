@@ -167,6 +167,55 @@ export function Shops() {
                 ))}
               </tbody>
             </table>
+
+            <div className="mobile-card-list">
+              {items.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>
+                  No records
+                </div>
+              )}
+              {items.map(s => (
+                <div key={s.id} className="mobile-card">
+                  <div className="mobile-card-header">
+                    {s.images && s.images[0] ? (
+                      <img className="mobile-card-thumb" src={img.thumb(s.images[0])} alt={s.shopName} />
+                    ) : (
+                      <div className="mobile-card-thumb-placeholder">🏪</div>
+                    )}
+                    <div className="mobile-card-title-group">
+                      <div className="mobile-card-title">{s.shopName}</div>
+                      <div className="mobile-card-subtitle">{s.shopType}</div>
+                    </div>
+                    <span className={`status-pill ${s.reviewStatus}`}>{s.reviewStatus}</span>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-field">
+                      <span className="field-label">Keeper:</span>
+                      <span className="field-val">{s.keeperName} ({s.keeperPhone})</span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">Address:</span>
+                      <span className="field-val">{s.address || '—'}</span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">Agent:</span>
+                      <span className="field-val">{s.agent?.name || '—'}</span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">Date:</span>
+                      <span className="field-val">{new Date(s.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="mobile-card-actions">
+                    <button id={`btn-view-shop-mob-${s.id}`} className="btn-action" onClick={() => setSelected(s)}>View</button>
+                    {s.reviewStatus !== 'reviewed' && (
+                      <button id={`btn-review-shop-mob-${s.id}`} className="btn-action btn-review" onClick={() => markReviewed(s.id)}>Review</button>
+                    )}
+                    <button id={`btn-delete-shop-mob-${s.id}`} className="btn-action btn-delete" onClick={() => deleteRecord(s.id)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="pagination">
               <span className="pagination-info">
                 Page {page} of {Math.ceil(total / limit) || 1} ({total} total)

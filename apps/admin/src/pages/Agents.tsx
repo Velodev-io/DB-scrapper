@@ -141,7 +141,8 @@ export function Agents() {
         {loading ? (
           <p style={{ padding: '2rem', color: 'var(--concrete)', textAlign: 'center' }}>Loading…</p>
         ) : (
-          <table>
+          <>
+            <table>
             <thead>
               <tr>
                 <th>Name</th>
@@ -216,6 +217,82 @@ export function Agents() {
               ))}
             </tbody>
           </table>
+
+          <div className="mobile-card-list">
+            {agents.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>
+                No agents found
+              </div>
+            )}
+            {agents.map(agent => (
+              <div key={agent.id} className="mobile-card">
+                <div className="mobile-card-header">
+                  <div className="mobile-card-thumb-placeholder">👤</div>
+                  <div className="mobile-card-title-group">
+                    <div className="mobile-card-title">{agent.name || 'Invited Agent'}</div>
+                    <div className="mobile-card-subtitle">{agent.email}</div>
+                  </div>
+                  <span className={`status-pill ${agent.status}`}>{agent.status}</span>
+                </div>
+                <div className="mobile-card-body">
+                  <div className="mobile-card-field">
+                    <span className="field-label">Phone:</span>
+                    <span className="field-val">{agent.phone || '—'}</span>
+                  </div>
+                  <div className="mobile-card-field">
+                    <span className="field-label">Age:</span>
+                    <span className="field-val">{agent.age !== undefined && agent.age !== null ? agent.age : '—'}</span>
+                  </div>
+                  <div className="mobile-card-field">
+                    <span className="field-label">Joined:</span>
+                    <span className="field-val">{new Date(agent.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <div className="mobile-card-actions">
+                  {agent.status === 'active' && agent.clerkUserId && (
+                    <>
+                      <button
+                        id={`btn-edit-mob-${agent.id}`}
+                        className="btn-action btn-edit"
+                        onClick={() => {
+                          setEditAgentId(agent.clerkUserId!)
+                          setEditName(agent.name || '')
+                          setEditPhone(agent.phone || '')
+                          setEditAge(agent.age !== undefined && agent.age !== null ? String(agent.age) : '')
+                          setEditError(null)
+                          setShowEdit(true)
+                        }}
+                        style={{
+                          backgroundColor: 'var(--sand)',
+                          color: 'var(--coal)',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '0.375rem 0.75rem',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 500
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        id={`btn-revoke-mob-${agent.id}`}
+                        className="btn-action btn-delete"
+                        disabled={revoking === agent.clerkUserId}
+                        onClick={() => handleRevoke(agent.clerkUserId!)}
+                      >
+                        {revoking === agent.clerkUserId ? 'Revoking…' : 'Revoke'}
+                      </button>
+                    </>
+                  )}
+                  {agent.status === 'pending' && (
+                    <span style={{ color: 'var(--concrete)', fontSize: '0.8rem', padding: '0.5rem 0' }}>Invited — awaiting sign-up</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          </>
         )}
       </div>
 

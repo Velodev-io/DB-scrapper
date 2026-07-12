@@ -36,9 +36,28 @@ body {
 /* ── Shell Layout ────────────────────────────────────────────────── */
 .shell {
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   grid-template-rows: var(--topbar-height) 1fr;
   min-height: 100vh;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--bone);
+  font-size: 1.35rem;
+  cursor: pointer;
+  margin-right: 1rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.mobile-menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .topbar {
@@ -46,7 +65,7 @@ body {
   background: var(--ink);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 0 1.5rem;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
@@ -56,6 +75,7 @@ body {
   font-size: 1.125rem;
   color: var(--bone);
   letter-spacing: -0.01em;
+  flex-grow: 1;
 }
 
 .topbar-right {
@@ -154,7 +174,7 @@ body {
   background: var(--white);
   border-radius: 10px;
   border: 1px solid var(--sand);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 table {
@@ -406,4 +426,254 @@ tr:hover td { background: var(--bone); }
 }
 .btn-secondary:hover {
   border-color: var(--concrete);
+}
+
+/* ── Premium Aesthetic Adjustments ── */
+.btn-primary, .btn-secondary, .btn-action, .btn-pagination {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-primary:active, .btn-secondary:active, .btn-action:active {
+  transform: scale(0.97);
+}
+
+.data-table-wrap {
+  box-shadow: 0 4px 18px rgba(28, 27, 24, 0.04);
+}
+
+/* Sleeker Status Pills */
+.status-pill {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+}
+.status-pill::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+/* Modals with animations */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+  animation: fadeIn 0.2s ease-out;
+}
+.modal {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Mobile cards */
+.mobile-card-list {
+  display: none;
+  flex-direction: column;
+  gap: 1rem;
+}
+.mobile-card {
+  background: var(--white);
+  border: 1px solid var(--sand);
+  border-radius: 10px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 12px rgba(28, 27, 24, 0.03);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.mobile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(28, 27, 24, 0.06);
+}
+.mobile-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--bone);
+  padding-bottom: 0.75rem;
+}
+.mobile-card-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--sand);
+}
+.mobile-card-thumb-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  background: var(--sand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+.mobile-card-title-group {
+  flex: 1;
+  min-width: 0;
+}
+.mobile-card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mobile-card-subtitle {
+  font-size: 0.75rem;
+  color: var(--concrete);
+  margin-top: 0.1rem;
+}
+.mobile-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.mobile-card-field {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+.mobile-card-field .field-label {
+  color: var(--concrete);
+}
+.mobile-card-field .field-val {
+  font-weight: 500;
+  color: var(--ink);
+}
+.mobile-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  border-top: 1px solid var(--bone);
+  padding-top: 0.75rem;
+}
+
+/* Backdrop for Mobile Sidebar Drawer */
+.sidebar-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 399;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Close Button on Mobile Drawer */
+.sidebar-header-mobile {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--sand);
+  background: var(--bone);
+}
+.sidebar-title-mobile {
+  font-family: var(--font-heading);
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+.sidebar-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--concrete);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+.sidebar-close-btn:hover {
+  background: var(--sand);
+  color: var(--ink);
+}
+
+/* ── Media Queries ── */
+@media (max-width: 767px) {
+  .mobile-menu-toggle {
+    display: flex;
+  }
+  
+  .shell {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: var(--sidebar-width);
+    height: 100vh;
+    z-index: 400;
+    transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    padding-top: 0; /* Header-mobile handles padding top */
+  }
+  
+  .sidebar.open {
+    left: 0;
+  }
+  
+  .sidebar-header-mobile {
+    display: flex;
+  }
+  
+  .main-content {
+    height: calc(100vh - var(--topbar-height));
+    padding: 1.25rem;
+  }
+  
+  .page-header h1 {
+    font-size: 1.35rem;
+  }
+  
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  
+  .filter-select, .search-input {
+    width: 100%;
+  }
+  
+  .data-table-wrap table {
+    display: none;
+  }
+  
+  .mobile-card-list {
+    display: flex;
+  }
+  
+  .modal {
+    width: 95%;
+    max-width: 95%;
+    padding: 1.25rem;
+    margin: 0.5rem;
+  }
+  
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
 }

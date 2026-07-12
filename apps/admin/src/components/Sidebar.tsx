@@ -8,20 +8,35 @@ const navItems = [
   { to: '/agents',     icon: '👥', label: 'Agents' },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean
+  onClose: () => void
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
-    <aside className="sidebar">
-      <div className="sidebar-section-label">Inbox</div>
-      {navItems.map(item => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <span>{item.icon}</span>
-          <span>{item.label}</span>
-        </NavLink>
-      ))}
-    </aside>
+    <>
+      {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        <div className="sidebar-header-mobile">
+          <span className="sidebar-title-mobile">Carry Admin</span>
+          <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu">
+            &times;
+          </button>
+        </div>
+        <div className="sidebar-section-label">Inbox</div>
+        {navItems.map(item => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={onClose}
+          >
+            <span>{item.icon}</span>
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+      </aside>
+    </>
   )
 }

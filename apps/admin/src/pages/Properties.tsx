@@ -212,6 +212,57 @@ export function Properties() {
                 ))}
               </tbody>
             </table>
+
+            <div className="mobile-card-list">
+              {items.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>
+                  No records
+                </div>
+              )}
+              {items.map(p => (
+                <div key={p.id} className="mobile-card">
+                  <div className="mobile-card-header">
+                    {p.images[0] ? (
+                      <img className="mobile-card-thumb" src={img.thumb(p.images[0])} alt={p.title} />
+                    ) : (
+                      <div className="mobile-card-thumb-placeholder">🏠</div>
+                    )}
+                    <div className="mobile-card-title-group">
+                      <div className="mobile-card-title">{p.title}</div>
+                      <div className="mobile-card-subtitle">{p.propertyType} • {p.listingType}</div>
+                    </div>
+                    <span className={`status-pill ${p.reviewStatus}`}>{p.reviewStatus}</span>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-field">
+                      <span className="field-label">Price:</span>
+                      <span className="field-val" style={{ fontFamily: 'var(--font-mono)' }}>
+                        {p.priceLabel}{p.listingType === 'Rent' && ' / mo'}
+                      </span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">Location:</span>
+                      <span className="field-val">{p.city} {p.locality ? `(${p.locality})` : ''}</span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">Agent:</span>
+                      <span className="field-val">{p.agent?.name ?? '—'}</span>
+                    </div>
+                    <div className="mobile-card-field">
+                      <span className="field-label">Date:</span>
+                      <span className="field-val">{new Date(p.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="mobile-card-actions">
+                    <button id={`btn-view-prop-mob-${p.id}`} className="btn-action" onClick={() => setSelected(p)}>View</button>
+                    {p.reviewStatus !== 'reviewed' && (
+                      <button id={`btn-review-prop-mob-${p.id}`} className="btn-action btn-review" onClick={() => markReviewed(p.id)}>Review</button>
+                    )}
+                    <button id={`btn-delete-prop-mob-${p.id}`} className="btn-action btn-delete" onClick={() => deleteRecord(p.id)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
             {/* Pagination */}
             <div className="pagination">
               <span className="pagination-info">

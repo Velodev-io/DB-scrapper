@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { SignedIn, SignedOut, SignIn, useUser } from '@clerk/clerk-react'
 import { Sidebar } from './components/Sidebar'
@@ -24,6 +25,8 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   return (
     <>
       <SignedOut>
@@ -33,9 +36,9 @@ export default function App() {
       </SignedOut>
       <SignedIn>
         <AdminGuard>
-          <div className="shell">
-            <Topbar />
-            <Sidebar />
+          <div className={`shell ${sidebarOpen ? 'sidebar-open' : ''}`}>
+            <Topbar onToggleSidebar={() => setSidebarOpen(p => !p)} />
+            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
             <main className="main-content">
               <Routes>
                 <Route path="/"           element={<Navigate to="/properties" replace />} />
