@@ -45,6 +45,16 @@ export function serializeProperty(row: any): Property {
     } : undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+
+    securityDeposit: row.securityDeposit ?? undefined,
+    availableFrom: row.availableFrom ?? undefined,
+    preferredTenant: row.preferredTenant ?? undefined,
+    petFriendly: row.petFriendly ?? undefined,
+    maintenanceCharges: row.maintenanceCharges ?? undefined,
+    leaseDuration: row.leaseDuration ?? undefined,
+    lockInPeriod: row.lockInPeriod ?? undefined,
+    camCharges: row.camCharges ?? undefined,
+    plotAllowedUse: row.plotAllowedUse ?? undefined,
   }
 }
 
@@ -102,6 +112,7 @@ export function serializeShop(row: any): Shop {
     address:     row.address ?? undefined,
     lat:         row.lat ?? undefined,
     lng:         row.lng ?? undefined,
+    images:      Array.isArray(row.images) ? row.images : [],
     reviewStatus: row.reviewStatus,
     agentId:     row.agentId,
     agent: row.agent ? { id: row.agent.id, name: row.agent.name, email: row.agent.email } : undefined,

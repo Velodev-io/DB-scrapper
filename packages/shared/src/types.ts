@@ -1,7 +1,7 @@
 // ── Enums ──────────────────────────────────────────────────────────────
 
 export type PropertyType   = 'Apartment' | 'Villa' | 'Plot' | 'Commercial'
-export type ListingType    = 'Sale' | 'Resale' | 'Under Construction'
+export type ListingType    = 'Sale' | 'Resale' | 'Under Construction' | 'Rent'
 export type PropertyStatus = 'Ready' | 'Under Construction'
 export type FurnishingType = 'Unfurnished' | 'Semi-Furnished' | 'Furnished'
 export type ReviewStatus   = 'pending' | 'reviewed' | 'deleted'
@@ -49,6 +49,17 @@ export interface Property {
   agent?:       Pick<Agent, 'id' | 'name' | 'email'>
   createdAt:    string
   updatedAt:    string
+
+  // Rent-specific fields (all optional)
+  securityDeposit?:    number
+  availableFrom?:      string   // ISO date string
+  preferredTenant?:    string   // 'Family' | 'Bachelor' | 'Company' | 'Any'
+  petFriendly?:        boolean
+  maintenanceCharges?: number
+  leaseDuration?:      number
+  lockInPeriod?:       number
+  camCharges?:         number
+  plotAllowedUse?:     string   // 'Residential' | 'Commercial' | 'Agriculture' | 'Any'
 }
 
 export interface ConstructionProject {
@@ -100,6 +111,7 @@ export interface Shop {
   address?:     string
   lat?:         number
   lng?:         number
+  images?:      string[]
   reviewStatus: ReviewStatus
   agentId:      string
   agent?:       Pick<Agent, 'id' | 'name' | 'email'>

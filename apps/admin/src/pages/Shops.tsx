@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { api, type Shop, type Paginated } from '@carry/shared'
+import { api, img, type Shop, type Paginated } from '@carry/shared'
 import { REVIEW_STATUSES } from '@carry/shared'
 
 type FilterState = {
@@ -115,6 +115,7 @@ export function Shops() {
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: 60 }}>Photo</th>
                   <th>Shop Name</th>
                   <th>Shop Type</th>
                   <th>Shopkeeper</th>
@@ -129,13 +130,18 @@ export function Shops() {
               <tbody>
                 {items.length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>
+                    <td colSpan={10} style={{ textAlign: 'center', color: 'var(--concrete)', padding: '2rem' }}>
                       No records
                     </td>
                   </tr>
                 )}
                 {items.map(s => (
                   <tr key={s.id}>
+                    <td>
+                      {s.images && s.images[0]
+                        ? <img className="table-thumb" src={img.thumb(s.images[0])} alt={s.shopName} />
+                        : <div className="table-thumb" />}
+                    </td>
                     <td style={{ fontWeight: 500 }}>{s.shopName}</td>
                     <td><span className="chip" style={{ margin: 0, background: 'var(--sand)' }}>{s.shopType}</span></td>
                     <td>{s.keeperName}</td>
@@ -251,6 +257,30 @@ export function Shops() {
                 <span className="detail-value">{new Date(selected.createdAt).toLocaleString()}</span>
               </div>
             </div>
+
+            {/* Photo Gallery */}
+            {selected.images && selected.images.length > 0 && (
+              <div className="gallery-section" style={{ marginTop: '1.5rem' }}>
+                <div className="gallery-title" style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--concrete)', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+                  Photos ({selected.images.length})
+                </div>
+                <div className="gallery-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.75rem' }}>
+                  {selected.images.map((publicId, i) => (
+                    <div key={publicId} className="gallery-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <img className="gallery-img" src={img.card(publicId)} alt={`Photo ${i + 1}`} style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--sand)' }} />
+                      <a
+                        className="gallery-download-btn"
+                        href={img.download(publicId, `${selected.shopName}-photo-${i + 1}`)}
+                        download
+                        style={{ fontSize: '0.75rem', color: 'var(--ochre)', textDecoration: 'none', fontWeight: 600 }}
+                      >
+                        ↓ Download
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
               <button className="btn-secondary" onClick={() => setSelected(null)}>Close</button>

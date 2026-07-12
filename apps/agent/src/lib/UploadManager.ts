@@ -1,5 +1,6 @@
 import { compressImage } from './compress'
 import { enqueuePendingUpload } from './uploadQueue'
+import { generateUUID } from './uuid'
 
 export type PhotoStatus = 'waiting' | 'compressing' | 'uploading' | 'done' | 'queued' | 'failed'
 
@@ -52,7 +53,7 @@ class UploadManager {
 
   addPhotos(files: File[], scope: string) {
     const newItems: PhotoItem[] = files.map(file => ({
-      id:      crypto.randomUUID(),
+      id:      generateUUID(),
       scope,
       file,
       preview: URL.createObjectURL(file),
@@ -117,30 +118,34 @@ class UploadManager {
       const blob = await compressImage(item.file)
       this.updatePhoto(item.id, { progress: 10 }, item.scope)
 
-      let model: 'property' | 'project' | 'labour' = 'property'
+      let model: 'property' | 'project' | 'labour' | 'shop' = 'property'
       let fieldName = 'images'
       let folder = 'properties'
 
-      if (item.scope === 'floorPlanUrl') {
+      if (item.scope === 'floorPlanUrl' || item.scope.includes('floor')) {
         model = 'property'
         fieldName = 'floorPlanUrl'
         folder = 'properties'
-      } else if (item.scope === 'beforeImages') {
+      } else if (item.scope === 'beforeImages' || item.scope.includes('before')) {
         model = 'project'
         fieldName = 'beforeImages'
         folder = 'projects'
-      } else if (item.scope === 'afterImages') {
+      } else if (item.scope === 'afterImages' || item.scope.includes('after')) {
         model = 'project'
         fieldName = 'afterImages'
         folder = 'projects'
-      } else if (item.scope === 'stageImages') {
+      } else if (item.scope === 'stageImages' || item.scope.includes('stage')) {
         model = 'project'
         fieldName = 'stageImages'
         folder = 'projects'
-      } else if (item.scope === 'profilePhotoUrl') {
+      } else if (item.scope === 'profilePhotoUrl' || item.scope.includes('profile')) {
         model = 'labour'
         fieldName = 'profilePhotoUrl'
         folder = 'labour'
+      } else if (item.scope === 'shopImages' || item.scope.includes('shop')) {
+        model = 'shop'
+        fieldName = 'images'
+        folder = 'shops'
       }
 
       if (!navigator.onLine) {

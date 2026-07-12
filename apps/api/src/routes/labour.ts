@@ -99,6 +99,49 @@ export default async function labourRoutes(app: FastifyInstance) {
     return { data: rows.map(serializeLabour), total, page, limit }
   })
 
+  // PATCH /labour/:id/agent — agent edits their own labour record
+  app.patch('/labour/:id/agent', { preHandler: requireAgent,
+    schema: { tags: ['Labour'], summary: 'Agent edits their own labour profile', security: [{ bearerAuth: [] }],
+      params: { type: 'object', properties: { id: {type:'string'} }, required: ['id'] },
+      body: { type: 'object', properties: {
+        fullName: {type:'string'}, age: {type:'integer'}, gender: {type:'string'},
+        skillLevel: {type:'string'}, skillType: {type:'string'}, phone: {type:'string'},
+        profilePhotoUrl: {type:'string'}, houseNo: {type:'string'}, street: {type:'string'},
+        locality: {type:'string'}, city: {type:'string'}, pincode: {type:'string'},
+      }}
+    }
+  }, async (request, reply) => {
+    const { id } = request.params as any
+    const clerkUserId = (request as any).clerkUserId
+    const existing = await prisma.labour.findFirst({
+      where: { id, agent: { clerkUserId } },
+      select: { id: true },
+    })
+    if (!existing) return reply.code(404).send({ error: 'Labour record not found or not yours' })
+
+    const body = request.body as any
+    const { fullName, age, gender, skillLevel, skillType, phone,
+            profilePhotoUrl, houseNo, street, locality, city, pincode } = body
+    const data: any = { reviewStatus: 'pending' }
+    if (fullName        !== undefined) data.fullName        = fullName
+    if (age             !== undefined) data.age             = age
+    if (gender          !== undefined) data.gender          = gender
+    if (skillLevel      !== undefined) data.skillLevel      = skillLevel
+    if (skillType       !== undefined) data.skillType       = skillType
+    if (phone           !== undefined) data.phone           = phone
+    if (profilePhotoUrl !== undefined) data.profilePhotoUrl = profilePhotoUrl
+    if (houseNo         !== undefined) data.houseNo         = houseNo
+    if (street          !== undefined) data.street          = street
+    if (locality        !== undefined) data.locality        = locality
+    if (city            !== undefined) data.city            = city
+    if (pincode         !== undefined) data.pincode         = pincode
+    try {
+      const row = await prisma.labour.update({ where: { id }, data,
+        include: { agent: { select: { id: true, name: true, email: true } } } })
+      return serializeLabour(row)
+    } catch { return reply.code(500).send({ error: 'Failed to update labour record' }) }
+  })
+
   // PATCH /labour/:id — admin updates reviewStatus
   app.patch('/labour/:id', { preHandler: requireAdmin,
     schema: { tags: ['Labour'], summary: 'Update labour profile review status (admin)', security: [{ bearerAuth: [] }],

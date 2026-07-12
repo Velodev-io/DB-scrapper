@@ -21,12 +21,15 @@ export const PROJECT_CATEGORIES = [
 ] as const
 
 export const PROPERTY_TYPES    = ['Apartment', 'Villa', 'Plot', 'Commercial']    as const
-export const LISTING_TYPES     = ['Sale', 'Resale', 'Under Construction']         as const
+export const LISTING_TYPES     = ['Sale', 'Resale', 'Under Construction', 'Rent'] as const
 export const PROPERTY_STATUSES = ['Ready', 'Under Construction']                  as const
 export const FURNISHING_TYPES  = ['Unfurnished', 'Semi-Furnished', 'Furnished']  as const
 export const PACKAGE_TIERS     = ['Basic', 'Premium', 'Luxury']                  as const
 export const GENDERS           = ['Male', 'Female', 'Other']                     as const
 export const REVIEW_STATUSES   = ['pending', 'reviewed', 'deleted']              as const
+
+export const PREFERRED_TENANT_TYPES = ['Family', 'Bachelor', 'Company', 'Any'] as const
+export const PLOT_ALLOWED_USE_TYPES = ['Residential', 'Commercial', 'Agriculture', 'Any'] as const
 
 // BHK options for the chip selector
 export const BHK_OPTIONS = [1, 2, 3, 4, 5] as const

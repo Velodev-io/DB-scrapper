@@ -3,7 +3,7 @@ import crypto from 'node:crypto'
 import { requireAgent } from '../lib/auth.js'
 import { prisma } from '../lib/prisma.js'
 
-const ALLOWED_FOLDERS = ['properties', 'projects', 'labour'] as const
+const ALLOWED_FOLDERS = ['properties', 'projects', 'labour', 'shops'] as const
 type UploadFolder = typeof ALLOWED_FOLDERS[number]
 
 export default async function uploadsRoutes(app: FastifyInstance) {
@@ -22,7 +22,7 @@ export default async function uploadsRoutes(app: FastifyInstance) {
           properties: {
             folder: {
               type: 'string',
-              enum: ['properties', 'projects', 'labour'],
+              enum: ['properties', 'projects', 'labour', 'shops'],
               description: 'Cloudinary folder to upload into',
             },
           },
@@ -99,7 +99,7 @@ export default async function uploadsRoutes(app: FastifyInstance) {
           type: 'object',
           required: ['model', 'recordId', 'fieldName', 'publicId'],
           properties: {
-            model:     { type: 'string', enum: ['property', 'project', 'labour'] },
+            model:     { type: 'string', enum: ['property', 'project', 'labour', 'shop'] },
             recordId:  { type: 'string' },
             fieldName: { type: 'string' },   // 'images' | 'beforeImages' | 'afterImages' | 'stageImages' | 'profilePhotoUrl'
             publicId:  { type: 'string' },   // Cloudinary public ID (not the full URL)
@@ -109,7 +109,7 @@ export default async function uploadsRoutes(app: FastifyInstance) {
     },
     async (request, reply) => {
       const { model, recordId, fieldName, publicId } = request.body as {
-        model: 'property' | 'project' | 'labour'
+        model: 'property' | 'project' | 'labour' | 'shop'
         recordId: string
         fieldName: string
         publicId: string
@@ -122,6 +122,7 @@ export default async function uploadsRoutes(app: FastifyInstance) {
         property: ['images', 'floorPlanUrl'],
         project:  ['beforeImages', 'afterImages', 'stageImages'],
         labour:   ['profilePhotoUrl'],
+        shop:     ['images'],
       }
       if (!ALLOWED_FIELDS[model]?.includes(fieldName)) {
         return reply.code(400).send({ error: `Invalid fieldName '${fieldName}' for model '${model}'` })
@@ -174,6 +175,17 @@ export default async function uploadsRoutes(app: FastifyInstance) {
           await prisma.labour.update({
             where: { id: recordId },
             data: { profilePhotoUrl: publicId },
+          })
+        } else if (model === 'shop') {
+          const shopRecord = await prisma.shop.findFirst({
+            where: { id: recordId, agent: { clerkUserId } },
+            select: { id: true },
+          })
+          if (!shopRecord) return reply.code(404).send({ error: 'Shop record not found or not yours' })
+
+          await prisma.shop.update({
+            where: { id: recordId },
+            data: { images: { push: publicId } },
           })
         }
 

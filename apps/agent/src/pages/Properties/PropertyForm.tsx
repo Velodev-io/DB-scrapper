@@ -7,13 +7,16 @@ import {
   LISTING_TYPES,
   PROPERTY_STATUSES,
   FURNISHING_TYPES,
-  formatPriceLabel
+  formatPriceLabel,
+  PREFERRED_TENANT_TYPES,
+  PLOT_ALLOWED_USE_TYPES
 } from '@carry/shared'
 import { useFormPersist } from '../../hooks/useFormPersist'
 import { PhotoUploader } from '../../components/PhotoUploader/PhotoUploader'
 import { LocationPicker } from '../../components/LocationPicker'
 import { uploadManager } from '../../lib/UploadManager'
 import { enqueuePendingRecord, updateRecordId } from '../../lib/uploadQueue'
+import { generateUUID } from '../../lib/uuid'
 
 interface FormState {
   title: string
@@ -31,6 +34,17 @@ interface FormState {
   description: string
   lat: number | undefined
   lng: number | undefined
+
+  // Rent-specific fields
+  securityDeposit: string
+  availableFrom: string
+  preferredTenant: string
+  petFriendly: boolean
+  maintenanceCharges: string
+  leaseDuration: string
+  lockInPeriod: string
+  camCharges: string
+  plotAllowedUse: string
 }
 
 const initialForm: FormState = {
@@ -49,6 +63,15 @@ const initialForm: FormState = {
   description: '',
   lat: undefined,
   lng: undefined,
+  securityDeposit: '',
+  availableFrom: '',
+  preferredTenant: 'Any',
+  petFriendly: false,
+  maintenanceCharges: '',
+  leaseDuration: '',
+  lockInPeriod: '',
+  camCharges: '',
+  plotAllowedUse: 'Any',
 }
 
 export function PropertyForm() {
@@ -82,7 +105,7 @@ export function PropertyForm() {
     setSubmitting(true)
 
     try {
-      const recordId = crypto.randomUUID()
+      const recordId = generateUUID()
       const allImageIds = uploadManager.getUploadedIds('images')
       const allFloorPlanIds = uploadManager.getUploadedIds('floorPlanUrl')
 
@@ -95,6 +118,28 @@ export function PropertyForm() {
         ?.replace('__queued__:', '') ?? null
 
       const priceVal = parseInt(form.priceInr)
+
+      const rentPayload = form.listingType === 'Rent' ? {
+        securityDeposit: form.securityDeposit ? parseInt(form.securityDeposit) : null,
+        availableFrom: form.availableFrom || null,
+        preferredTenant: form.preferredTenant || null,
+        petFriendly: form.petFriendly,
+        maintenanceCharges: form.maintenanceCharges ? parseInt(form.maintenanceCharges) : null,
+        leaseDuration: form.leaseDuration ? parseInt(form.leaseDuration) : null,
+        lockInPeriod: form.lockInPeriod ? parseInt(form.lockInPeriod) : null,
+        camCharges: form.camCharges ? parseInt(form.camCharges) : null,
+        plotAllowedUse: form.plotAllowedUse || null,
+      } : {
+        securityDeposit: null,
+        availableFrom: null,
+        preferredTenant: null,
+        petFriendly: null,
+        maintenanceCharges: null,
+        leaseDuration: null,
+        lockInPeriod: null,
+        camCharges: null,
+        plotAllowedUse: null,
+      }
 
       if (!navigator.onLine) {
         const tempId = `temp-${recordId}`
@@ -133,6 +178,7 @@ export function PropertyForm() {
             floorPlanUrl: queuedFloorPlanLocalId, // bare UUID or null
             lat: form.lat || null,
             lng: form.lng || null,
+            ...rentPayload,
           },
           createdAt: Date.now(),
         })
@@ -173,6 +219,7 @@ export function PropertyForm() {
         floorPlanUrl,
         lat: form.lat || null,
         lng: form.lng || null,
+        ...rentPayload,
       }
 
       const newProp = await api.post<{ id: string }>('/properties', payload, token)
@@ -201,7 +248,21 @@ export function PropertyForm() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Submit Property</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          style={{
+            background: 'none', border: 'none', padding: '0.25rem',
+            fontSize: '1.5rem', cursor: 'pointer', color: 'var(--ink)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
+          aria-label="Back"
+        >
+          ←
+        </button>
+        <h1 className="page-title" style={{ marginBottom: 0 }}>Submit Property</h1>
+      </div>
       {error && <div className="form-error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <form onSubmit={handleSubmit}>
@@ -277,22 +338,161 @@ export function PropertyForm() {
         )}
 
         <div className="form-field">
-          <label className="label">Price (INR) *</label>
+          <label className="label">
+            {form.listingType === 'Rent' ? 'Rent / Month (INR) *' : 'Price (INR) *'}
+          </label>
           <input
             type="number"
             className="form-input"
             required
             value={form.priceInr}
             onChange={(e) => update({ priceInr: e.target.value })}
-            placeholder="e.g. 7500000"
+            placeholder={form.listingType === 'Rent' ? 'e.g. 25000' : 'e.g. 7500000'}
           />
           {form.priceInr && (
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--ochre)' }}>
-              Auto-label: {formatPriceLabel(parseInt(form.priceInr) || 0)}
+              Auto-label: {formatPriceLabel(parseInt(form.priceInr) || 0)}{form.listingType === 'Rent' && ' / month'}
             </div>
           )}
         </div>
 
+        {form.listingType === 'Rent' && (
+          <div className="rent-fields-section" style={{ border: '1px solid var(--sand)', borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.02)' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--ochre)', fontSize: '1rem' }}>Rent Specific Details (Optional)</h3>
+            
+            <div className="form-field">
+              <label className="label">Security Deposit (INR)</label>
+              <input
+                type="number"
+                className="form-input"
+                value={form.securityDeposit}
+                onChange={(e) => update({ securityDeposit: e.target.value })}
+                placeholder="e.g. 50000"
+              />
+            </div>
+
+            {(form.propertyType === 'Apartment' || form.propertyType === 'Villa' || form.propertyType === 'Commercial') && (
+              <div className="form-field">
+                <label className="label">Available From</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={form.availableFrom}
+                  onChange={(e) => update({ availableFrom: e.target.value })}
+                />
+              </div>
+            )}
+
+            {(form.propertyType === 'Apartment' || form.propertyType === 'Villa') && (
+              <div className="form-field">
+                <label className="label">Preferred Tenant</label>
+                <div className="chip-group">
+                  {PREFERRED_TENANT_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      className={`chip ${form.preferredTenant === type ? 'active' : ''}`}
+                      onClick={() => update({ preferredTenant: type })}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(form.propertyType === 'Apartment' || form.propertyType === 'Villa') && (
+              <div className="form-field">
+                <label className="label">Pet Friendly</label>
+                <div className="chip-group">
+                  <button
+                    type="button"
+                    className={`chip ${form.petFriendly ? 'active' : ''}`}
+                    onClick={() => update({ petFriendly: true })}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip ${!form.petFriendly ? 'active' : ''}`}
+                    onClick={() => update({ petFriendly: false })}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {(form.propertyType === 'Apartment' || form.propertyType === 'Villa' || form.propertyType === 'Commercial') && (
+              <div className="form-field">
+                <label className="label">Maintenance Charges (INR/month)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={form.maintenanceCharges}
+                  onChange={(e) => update({ maintenanceCharges: e.target.value })}
+                  placeholder="e.g. 3000"
+                />
+              </div>
+            )}
+
+            {(form.propertyType === 'Plot' || form.propertyType === 'Commercial') && (
+              <div className="form-field">
+                <label className="label">Minimum Lease Duration (Months)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={form.leaseDuration}
+                  onChange={(e) => update({ leaseDuration: e.target.value })}
+                  placeholder="e.g. 11"
+                />
+              </div>
+            )}
+
+            {form.propertyType === 'Commercial' && (
+              <>
+                <div className="form-field">
+                  <label className="label">Lock-in Period (Months)</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={form.lockInPeriod}
+                    onChange={(e) => update({ lockInPeriod: e.target.value })}
+                    placeholder="e.g. 6"
+                  />
+                </div>
+                <div className="form-field">
+                  <label className="label">CAM Charges (INR/month)</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={form.camCharges}
+                    onChange={(e) => update({ camCharges: e.target.value })}
+                    placeholder="e.g. 5000"
+                  />
+                </div>
+              </>
+            )}
+
+            {form.propertyType === 'Plot' && (
+              <div className="form-field">
+                <label className="label">Allowed Use</label>
+                <div className="chip-group">
+                  {PLOT_ALLOWED_USE_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      className={`chip ${form.plotAllowedUse === type ? 'active' : ''}`}
+                      onClick={() => update({ plotAllowedUse: type })}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="form-field">
           <label className="label">Locality *</label>

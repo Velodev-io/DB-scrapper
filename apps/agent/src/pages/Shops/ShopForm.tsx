@@ -1,10 +1,13 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import { api, SHOP_TYPES } from '@carry/shared'
 import { useFormPersist } from '../../hooks/useFormPersist'
 import { LocationPicker } from '../../components/LocationPicker'
-import { enqueuePendingRecord } from '../../lib/uploadQueue'
+import { PhotoUploader } from '../../components/PhotoUploader/PhotoUploader'
+import { uploadManager } from '../../lib/UploadManager'
+import { enqueuePendingRecord, updateRecordId } from '../../lib/uploadQueue'
+import { generateUUID } from '../../lib/uuid'
 
 interface FormState {
   shopName:    string
@@ -37,6 +40,11 @@ export function ShopForm() {
   const storageKey = `carry:form:shop:${user?.id ?? 'guest'}`
   const { form, update, clear } = useFormPersist<FormState>(storageKey, initialForm)
 
+  // Clear upload queues on mount to avoid bleeding
+  useEffect(() => {
+    uploadManager.clear('shopImages')
+  }, [])
+
   // datalist id for shop type suggestions
   const datalistId = 'shop-type-suggestions'
 
@@ -54,7 +62,13 @@ export function ShopForm() {
     setSubmitting(true)
 
     try {
-      const recordId = crypto.randomUUID()
+      const recordId = generateUUID()
+      const allImageIds = uploadManager.getUploadedIds('shopImages')
+
+      // Track queued photo localIds so we can link them to the real DB record after POST
+      const queuedImageLocalIds = allImageIds
+        .filter(id => id.startsWith('__queued__:'))
+        .map(id => id.replace('__queued__:', ''))
 
       const payload = {
         id:          recordId,
@@ -65,16 +79,29 @@ export function ShopForm() {
         address:     form.address || null,
         lat:         form.lat ?? null,
         lng:         form.lng ?? null,
+        images:      [] as string[],
       }
 
       if (!navigator.onLine) {
+        const tempId = `temp-${recordId}`
+
+        // Remap all queued photo uploads to this temp record ID so the
+        // background flusher knows which record they belong to
+        for (const localId of queuedImageLocalIds) {
+          await updateRecordId(localId, tempId)
+        }
+
         await enqueuePendingRecord({
-          id:        `temp-${recordId}`,
+          id:        tempId,
           type:      'shop',
-          payload,
+          payload: {
+            ...payload,
+            images: queuedImageLocalIds,
+          },
           createdAt: Date.now(),
         })
         clear()
+        uploadManager.clear('shopImages')
         navigate('/shops')
         return
       }
@@ -82,9 +109,23 @@ export function ShopForm() {
       const token = await getToken()
       if (!token) throw new Error('Not authenticated')
 
-      await api.post<{ id: string }>('/shops', payload, token)
+      // Only real Cloudinary IDs go to the API — filter out __queued__: placeholders.
+      const images = allImageIds.filter(id => !id.startsWith('__queued__:'))
+      const onlinePayload = {
+        ...payload,
+        images,
+      }
+
+      await api.post<{ id: string }>('/shops', onlinePayload, token)
+
+      // Link any still-queued photo uploads to the real DB record ID so that
+      // flushUploadQueueForeground can patch them in
+      for (const localId of queuedImageLocalIds) {
+        await updateRecordId(localId, recordId)
+      }
 
       clear()
+      uploadManager.clear('shopImages')
       navigate('/shops')
     } catch (err: any) {
       setError(err.message || 'Failed to submit shop record')
@@ -96,7 +137,21 @@ export function ShopForm() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Submit Shop</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          style={{
+            background: 'none', border: 'none', padding: '0.25rem',
+            fontSize: '1.5rem', cursor: 'pointer', color: 'var(--ink)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
+          aria-label="Back"
+        >
+          ←
+        </button>
+        <h1 className="page-title" style={{ marginBottom: 0 }}>Submit Shop</h1>
+      </div>
       {error && <div className="form-error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <form onSubmit={handleSubmit}>
@@ -184,6 +239,11 @@ export function ShopForm() {
             lng={form.lng}
             onChange={(lat, lng) => update({ lat, lng })}
           />
+        </div>
+
+        <div className="form-field" style={{ marginTop: '1.5rem' }}>
+          <label className="label" style={{ marginBottom: '0.5rem' }}>Shop Photos (up to 5)</label>
+          <PhotoUploader scope="shopImages" folder="shops" label="Add Shop Photos" maxPhotos={5} />
         </div>
 
         <div className="submit-bar">

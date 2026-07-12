@@ -15,4 +15,19 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // Clerk SDK is large (~180 kB) — isolate for long-term caching
+          if (id.includes('@clerk')) return 'vendor-clerk'
+          // React + ReactDOM + react-router in one stable vendor chunk
+          if (id.includes('react-dom') || id.includes('react-router') ||
+              id.includes('/react/') || id.includes('node_modules/react/')) return 'vendor-react'
+          // Everything else in node_modules → vendor chunk
+          if (id.includes('node_modules')) return 'vendor'
+        },
+      },
+    },
+  },
 })

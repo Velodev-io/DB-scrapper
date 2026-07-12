@@ -2,6 +2,21 @@ import type { FastifyRequest, FastifyReply } from 'fastify'
 import { verifyToken } from '@clerk/backend'
 
 const CLERK_SECRET = process.env.CLERK_SECRET_KEY ?? ''
+// CLERK_JWT_KEY (PEM public key from Clerk Dashboard → API Keys → Show JWT public key)
+// When set, JWT verification is done LOCALLY — no HTTP call to Clerk's JWKS endpoint.
+// This eliminates 200-300ms of latency per request. Get the key from:
+//   https://dashboard.clerk.com → API Keys → Show JWT public key
+const CLERK_JWT_KEY = process.env.CLERK_JWT_KEY ?? ''
+
+if (CLERK_JWT_KEY) {
+  console.log('🔑 JWT local verification enabled (fast path via humble-blowfish-97)')
+} else {
+  console.log('⚠️ CLERK_JWT_KEY not found in env. Auth will use slow path (~200ms extra latency)')
+}
+
+// In-memory cache to avoid duplicate slow Clerk API queries for the same user
+const roleCache = new Map<string, { role: string | null; expiresAt: number }>()
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes cache
 
 // ── Extract role from JWT (local operation — no HTTP call to Clerk) ───────
 // Role is embedded in the JWT via Clerk session customization:
@@ -14,17 +29,28 @@ async function extractRoleFromJWT(request: FastifyRequest): Promise<{ role: stri
   if (!token || !CLERK_SECRET) return { role: null, sub: null }
 
   try {
-    const payload = await verifyToken(token, { secretKey: CLERK_SECRET })
+    // When CLERK_JWT_KEY is set: fully local verification — no network call, ~0ms overhead.
+    // When not set: fetches JWKS from Clerk's API (~200-300ms from India).
+    const verifyOptions: Parameters<typeof verifyToken>[1] = { secretKey: CLERK_SECRET }
+    if (CLERK_JWT_KEY) verifyOptions.jwtKey = CLERK_JWT_KEY
+
+    const payload = await verifyToken(token, verifyOptions)
 
     // 'role' is the custom claim we added to the session token template
     let role = (payload as Record<string, unknown>).role as string | null
 
     // Fallback: If role is missing from JWT, fetch user directly from Clerk
     if (!role && payload.sub) {
-      const { createClerkClient } = await import('@clerk/backend')
-      const clerk = createClerkClient({ secretKey: CLERK_SECRET })
-      const user = await clerk.users.getUser(payload.sub)
-      role = (user.publicMetadata?.role as string) ?? null
+      const cached = roleCache.get(payload.sub)
+      if (cached && cached.expiresAt > Date.now()) {
+        role = cached.role
+      } else {
+        const { createClerkClient } = await import('@clerk/backend')
+        const clerk = createClerkClient({ secretKey: CLERK_SECRET })
+        const user = await clerk.users.getUser(payload.sub)
+        role = (user.publicMetadata?.role as string) ?? null
+        roleCache.set(payload.sub, { role, expiresAt: Date.now() + CACHE_TTL_MS })
+      }
     }
 
     return { role, sub: payload.sub }

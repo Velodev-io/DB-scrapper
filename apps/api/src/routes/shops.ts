@@ -17,6 +17,7 @@ export default async function shopRoutes(app: FastifyInstance) {
           address:     { type: 'string' },
           lat:         { type: 'number' },
           lng:         { type: 'number' },
+          images:      { type: 'array', items: { type: 'string' } },
           id:          { type: 'string' },   // client-generated idempotency key
         }
       }
@@ -26,13 +27,14 @@ export default async function shopRoutes(app: FastifyInstance) {
     const clerkUserId = (request as any).clerkUserId
     const agentId = await getOrCreateAgent(clerkUserId)
 
-    const { id: clientId, shopName, shopType, keeperName, keeperPhone, address, lat, lng } = body
+    const { id: clientId, shopName, shopType, keeperName, keeperPhone, address, lat, lng, images } = body
 
     const data: any = {
       shopName, shopType, keeperName, keeperPhone,
       address: address || null,
       lat:     lat     ?? null,
       lng:     lng     ?? null,
+      images:  images  ?? [],
       agentId,
       reviewStatus: 'pending',
     }
@@ -106,6 +108,50 @@ export default async function shopRoutes(app: FastifyInstance) {
       prisma.shop.count({ where }),
     ])
     return { data: rows.map(serializeShop), total, page, limit }
+  })
+
+  // PATCH /shops/:id/agent — agent edits their own shop record
+  app.patch('/shops/:id/agent', { preHandler: requireAgent,
+    schema: { tags: ['Shops'], summary: 'Agent edits their own shop submission', security: [{ bearerAuth: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+      body: { type: 'object', properties: {
+        shopName:    { type: 'string' },
+        shopType:    { type: 'string' },
+        keeperName:  { type: 'string' },
+        keeperPhone: { type: 'string' },
+        address:     { type: 'string' },
+        lat:         { type: 'number' },
+        lng:         { type: 'number' },
+        images:      { type: 'array', items: { type: 'string' } },
+      }}
+    }
+  }, async (request, reply) => {
+    const { id } = request.params as any
+    const clerkUserId = (request as any).clerkUserId
+    const existing = await prisma.shop.findFirst({
+      where: { id, agent: { clerkUserId } },
+      select: { id: true },
+    })
+    if (!existing) return reply.code(404).send({ error: 'Shop record not found or not yours' })
+
+    const body = request.body as any
+    const { shopName, shopType, keeperName, keeperPhone, address, lat, lng, images } = body
+    const data: any = { reviewStatus: 'pending' }
+    if (shopName    !== undefined) data.shopName    = shopName
+    if (shopType    !== undefined) data.shopType    = shopType
+    if (keeperName  !== undefined) data.keeperName  = keeperName
+    if (keeperPhone !== undefined) data.keeperPhone = keeperPhone
+    if (address     !== undefined) data.address     = address
+    if (lat         !== undefined) data.lat         = lat
+    if (lng         !== undefined) data.lng         = lng
+    if (images      !== undefined) data.images      = images
+    try {
+      const row = await prisma.shop.update({
+        where: { id }, data,
+        include: { agent: { select: { id: true, name: true, email: true } } },
+      })
+      return serializeShop(row)
+    } catch { return reply.code(500).send({ error: 'Failed to update shop record' }) }
   })
 
   // PATCH /shops/:id — admin updates reviewStatus

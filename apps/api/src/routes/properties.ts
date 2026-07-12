@@ -18,6 +18,15 @@ export default async function propertyRoutes(app: FastifyInstance) {
           images: {type:'array', items:{type:'string'}},
           floorPlanUrl: {type:'string'}, lat: {type:'number'}, lng: {type:'number'},
           id: {type:'string'},
+          securityDeposit: {type:'integer'},
+          availableFrom: {type:'string'},
+          preferredTenant: {type:'string'},
+          petFriendly: {type:'boolean'},
+          maintenanceCharges: {type:'integer'},
+          leaseDuration: {type:'integer'},
+          lockInPeriod: {type:'integer'},
+          camCharges: {type:'integer'},
+          plotAllowedUse: {type:'string'},
         }
       }
     }
@@ -29,12 +38,16 @@ export default async function propertyRoutes(app: FastifyInstance) {
     // Destructure only schema-allowed fields (never let client set agentId, reviewStatus, or pick their own id)
     const { id: clientId, title, propertyType, listingType, bhk, priceInr, priceLabel,
             areaSqft, locality, city, address, reraNumber, status, furnishing,
-            description, images, floorPlanUrl, lat, lng } = body
+            description, images, floorPlanUrl, lat, lng,
+            securityDeposit, availableFrom, preferredTenant, petFriendly, maintenanceCharges,
+            leaseDuration, lockInPeriod, camCharges, plotAllowedUse } = body
 
     const data: any = {
       title, propertyType, listingType, bhk, priceInr, priceLabel, areaSqft,
       locality, city, address, reraNumber, status, furnishing, description,
       images: images ?? [], floorPlanUrl, lat, lng, agentId, reviewStatus: 'pending',
+      securityDeposit, availableFrom, preferredTenant, petFriendly, maintenanceCharges,
+      leaseDuration, lockInPeriod, camCharges, plotAllowedUse,
     }
 
     try {
@@ -101,6 +114,61 @@ export default async function propertyRoutes(app: FastifyInstance) {
       prisma.property.count({ where }),
     ])
     return { data: rows.map(serializeProperty), total, page, limit }
+  })
+
+  // PATCH /properties/:id/agent — agent edits their own property
+  app.patch('/properties/:id/agent', { preHandler: requireAgent,
+    schema: { tags: ['Properties'], summary: 'Agent edits their own property submission', security: [{ bearerAuth: [] }],
+      params: { type: 'object', properties: { id: {type:'string'} }, required: ['id'] },
+      body: { type: 'object', properties: {
+        title: {type:'string'}, propertyType: {type:'string'}, listingType: {type:'string'},
+        bhk: {type:'integer'}, priceInr: {type:'integer'}, priceLabel: {type:'string'},
+        areaSqft: {type:'integer'}, locality: {type:'string'}, city: {type:'string'},
+        address: {type:'string'}, reraNumber: {type:'string'}, status: {type:'string'},
+        furnishing: {type:'string'}, description: {type:'string'},
+        images: {type:'array', items:{type:'string'}},
+        floorPlanUrl: {type:'string'}, lat: {type:'number'}, lng: {type:'number'},
+      }}
+    }
+  }, async (request, reply) => {
+    const { id } = request.params as any
+    const clerkUserId = (request as any).clerkUserId
+    // Verify ownership
+    const existing = await prisma.property.findFirst({
+      where: { id, agent: { clerkUserId } },
+      select: { id: true },
+    })
+    if (!existing) return reply.code(404).send({ error: 'Property not found or not yours' })
+
+    const body = request.body as any
+    // Strip immutable fields — only update what the agent sent
+    const { title, propertyType, listingType, bhk, priceInr, priceLabel,
+            areaSqft, locality, city, address, reraNumber, status, furnishing,
+            description, images, floorPlanUrl, lat, lng } = body
+    const data: any = { reviewStatus: 'pending' }
+    if (title         !== undefined) data.title         = title
+    if (propertyType  !== undefined) data.propertyType  = propertyType
+    if (listingType   !== undefined) data.listingType   = listingType
+    if (bhk           !== undefined) data.bhk           = bhk
+    if (priceInr      !== undefined) data.priceInr      = priceInr
+    if (priceLabel    !== undefined) data.priceLabel    = priceLabel
+    if (areaSqft      !== undefined) data.areaSqft      = areaSqft
+    if (locality      !== undefined) data.locality      = locality
+    if (city          !== undefined) data.city          = city
+    if (address       !== undefined) data.address       = address
+    if (reraNumber    !== undefined) data.reraNumber    = reraNumber
+    if (status        !== undefined) data.status        = status
+    if (furnishing    !== undefined) data.furnishing    = furnishing
+    if (description   !== undefined) data.description   = description
+    if (images        !== undefined) data.images        = images
+    if (floorPlanUrl  !== undefined) data.floorPlanUrl  = floorPlanUrl
+    if (lat           !== undefined) data.lat           = lat
+    if (lng           !== undefined) data.lng           = lng
+    try {
+      const row = await prisma.property.update({ where: { id }, data,
+        include: { agent: { select: { id: true, name: true, email: true } } } })
+      return serializeProperty(row)
+    } catch { return reply.code(500).send({ error: 'Failed to update property' }) }
   })
 
   // PATCH /properties/:id — admin updates reviewStatus

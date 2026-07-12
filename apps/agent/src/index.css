@@ -1,8 +1,10 @@
-/* ── Google Fonts Import ─────────────────────────────────────────── */
-@import '@fontsource-variable/fraunces';
+/* ── Fonts ────────────────────────────────────────────────────────── */
+/* @fontsource-variable packages use font-display:swap + unicode-range  */
+/* so the browser only fetches the subset files it actually needs.       */
 @import '@fontsource-variable/inter';
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource-variable/fraunces';
+/* IBM Plex Mono: latin-only, weight 400 — used only for price labels   */
+@import '@fontsource/ibm-plex-mono/latin-400.css';
 
 /* ── Brand Tokens ────────────────────────────────────────────────── */
 :root {
@@ -29,6 +31,8 @@
 
 /* ── Reset ───────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 

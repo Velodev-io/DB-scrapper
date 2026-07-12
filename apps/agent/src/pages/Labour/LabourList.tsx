@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Labour, type Paginated } from '@carry/shared'
 import { getPendingRecords } from '../../lib/uploadQueue'
+import { LabourDetailModal } from './LabourDetailModal'
 
 export function LabourList() {
+  const navigate = useNavigate()
   const { getToken } = useAuth()
   const [labourList, setLabourList] = useState<Labour[]>([])
   const [pendingLabour, setPendingLabour] = useState<any[]>([])
@@ -12,6 +14,7 @@ export function LabourList() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedLabour, setSelectedLabour] = useState<Labour | null>(null)
   const limit = 10
 
   const fetchLabour = useCallback(async (pageNum: number, append: boolean) => {
@@ -73,10 +76,29 @@ export function LabourList() {
   const allLabour = [...pendingLabour, ...labourList]
   const hasMore = labourList.length < total
 
+  const handleSaved = (updated: Labour) => {
+    setLabourList(prev => prev.map(l => l.id === updated.id ? updated : l))
+    setSelectedLabour(null)
+  }
+
   return (
     <div className="page" style={{ paddingBottom: 'calc(var(--nav-height) + 80px)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 className="page-title" style={{ marginBottom: 0 }}>My Labour</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            style={{
+              background: 'none', border: 'none', padding: '0.25rem',
+              fontSize: '1.5rem', cursor: 'pointer', color: 'var(--ink)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+            aria-label="Back"
+          >
+            ←
+          </button>
+          <h1 className="page-title" style={{ marginBottom: 0 }}>My Labour</h1>
+        </div>
         <Link to="/labour/new" className="chip active" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', minHeight: '36px' }}>
           + New
         </Link>
@@ -86,7 +108,16 @@ export function LabourList() {
 
       <div className="list-container">
         {allLabour.map(lab => (
-          <div key={lab.id} className="record-card">
+          <div
+            key={lab.id}
+            className="record-card"
+            style={{ cursor: lab.isPendingSync ? 'default' : 'pointer' }}
+            onClick={() => {
+              if (!lab.isPendingSync) {
+                setSelectedLabour(lab as Labour)
+              }
+            }}
+          >
             {lab.profilePhotoUrl && !lab.isPendingSync ? (
               <img
                 src={img.thumb(lab.profilePhotoUrl)}
@@ -143,6 +174,14 @@ export function LabourList() {
           </button>
         )}
       </div>
+
+      {selectedLabour && (
+        <LabourDetailModal
+          labour={selectedLabour}
+          onClose={() => setSelectedLabour(null)}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   )
 }

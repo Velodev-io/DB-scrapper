@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, type Shop, type Paginated } from '@carry/shared'
 import { getPendingRecords } from '../../lib/uploadQueue'
+import { ShopDetailModal } from './ShopDetailModal'
 
 export function ShopList() {
+  const navigate = useNavigate()
   const { getToken } = useAuth()
   const [shopList, setShopList] = useState<Shop[]>([])
   const [pendingShops, setPendingShops] = useState<any[]>([])
@@ -12,6 +14,7 @@ export function ShopList() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
   const limit = 10
 
   const fetchShops = useCallback(async (pageNum: number, append: boolean) => {
@@ -70,10 +73,29 @@ export function ShopList() {
   const allShops = [...pendingShops, ...shopList]
   const hasMore = shopList.length < total
 
+  const handleSaved = (updated: Shop) => {
+    setShopList(prev => prev.map(s => s.id === updated.id ? updated : s))
+    setSelectedShop(null)
+  }
+
   return (
     <div className="page" style={{ paddingBottom: 'calc(var(--nav-height) + 80px)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 className="page-title" style={{ marginBottom: 0 }}>My Shops</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            style={{
+              background: 'none', border: 'none', padding: '0.25rem',
+              fontSize: '1.5rem', cursor: 'pointer', color: 'var(--ink)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+            aria-label="Back"
+          >
+            ←
+          </button>
+          <h1 className="page-title" style={{ marginBottom: 0 }}>My Shops</h1>
+        </div>
         <Link to="/shops/new" className="chip active" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', minHeight: '36px' }}>
           + New
         </Link>
@@ -83,7 +105,16 @@ export function ShopList() {
 
       <div className="list-container">
         {allShops.map(shop => (
-          <div key={shop.id} className="record-card">
+          <div
+            key={shop.id}
+            className="record-card"
+            style={{ cursor: shop.isPendingSync ? 'default' : 'pointer' }}
+            onClick={() => {
+              if (!shop.isPendingSync) {
+                setSelectedShop(shop as Shop)
+              }
+            }}
+          >
             <div className="record-card-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>
               🏪
             </div>
@@ -128,6 +159,14 @@ export function ShopList() {
           </button>
         )}
       </div>
+
+      {selectedShop && (
+        <ShopDetailModal
+          shop={selectedShop}
+          onClose={() => setSelectedShop(null)}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { useFormPersist } from '../../hooks/useFormPersist'
 import { PhotoUploader } from '../../components/PhotoUploader/PhotoUploader'
 import { uploadManager } from '../../lib/UploadManager'
 import { enqueuePendingRecord, updateRecordId } from '../../lib/uploadQueue'
+import { generateUUID } from '../../lib/uuid'
 
 interface FormState {
   fullName: string
@@ -71,7 +72,7 @@ export function LabourForm() {
     setSubmitting(true)
 
     try {
-      const recordId = crypto.randomUUID()
+      const recordId = generateUUID()
       const allProfilePhotoUrls = uploadManager.getUploadedIds('profilePhotoUrl')
       const queuedPhotoLocalId = allProfilePhotoUrls
         .find(id => id.startsWith('__queued__:'))
@@ -166,7 +167,21 @@ export function LabourForm() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Submit Labour</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          style={{
+            background: 'none', border: 'none', padding: '0.25rem',
+            fontSize: '1.5rem', cursor: 'pointer', color: 'var(--ink)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
+          aria-label="Back"
+        >
+          ←
+        </button>
+        <h1 className="page-title" style={{ marginBottom: 0 }}>Submit Labour</h1>
+      </div>
       {error && <div className="form-error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <form onSubmit={handleSubmit}>

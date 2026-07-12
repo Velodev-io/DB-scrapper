@@ -235,6 +235,20 @@ export async function flushPendingRecordsForeground() {
               allPhotosReady = false
             }
           }
+        } else if (record.type === 'shop') {
+          const imageLocalIds = payload.images || []
+          const resolvedImages: string[] = []
+          for (const localId of imageLocalIds) {
+            const cleanedId = localId.startsWith('__queued__:') ? localId.replace('__queued__:', '') : localId
+            const pubId = await getPublicIdForLocalId(cleanedId)
+            if (pubId) {
+              resolvedImages.push(pubId)
+            } else {
+              allPhotosReady = false
+              break
+            }
+          }
+          payload.images = resolvedImages
         }
 
         if (!allPhotosReady) continue
@@ -270,6 +284,13 @@ export async function flushPendingRecordsForeground() {
           } else if (record.type === 'labour') {
             if (record.payload.profilePhotoUrl) {
               const cleanedId = record.payload.profilePhotoUrl.startsWith('__queued__:') ? record.payload.profilePhotoUrl.replace('__queued__:', '') : record.payload.profilePhotoUrl
+              const upload = pendingUploads.find(u => u.localId === cleanedId)
+              if (upload?.id) await removePendingUpload(upload.id)
+            }
+          } else if (record.type === 'shop') {
+            const imageLocalIds = record.payload.images || []
+            for (const localId of imageLocalIds) {
+              const cleanedId = localId.startsWith('__queued__:') ? localId.replace('__queued__:', '') : localId
               const upload = pendingUploads.find(u => u.localId === cleanedId)
               if (upload?.id) await removePendingUpload(upload.id)
             }

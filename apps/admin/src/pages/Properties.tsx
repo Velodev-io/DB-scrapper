@@ -179,7 +179,9 @@ export function Properties() {
                     <td>{p.propertyType}</td>
                     <td>{p.listingType}</td>
                     <td>{p.city}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{p.priceLabel}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
+                      {p.priceLabel}{p.listingType === 'Rent' && ' / mo'}
+                    </td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--concrete)' }}>{p.agent?.name ?? '—'}</td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--concrete)', whiteSpace: 'nowrap' }}>
                       {new Date(p.createdAt).toLocaleDateString()}
@@ -254,8 +256,8 @@ export function Properties() {
                 <span className="detail-value">{selected.listingType}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">Price</span>
-                <span className="detail-value">{selected.priceLabel}</span>
+                <span className="detail-label">{selected.listingType === 'Rent' ? 'Rent' : 'Price'}</span>
+                <span className="detail-value">{selected.priceLabel}{selected.listingType === 'Rent' && ' / month'}</span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">Area</span>
@@ -303,6 +305,66 @@ export function Properties() {
                 <span className="detail-label">Review Status</span>
                 <span className={`status-pill ${selected.reviewStatus}`}>{selected.reviewStatus}</span>
               </div>
+
+              {selected.listingType === 'Rent' && (
+                <>
+                  {selected.securityDeposit !== undefined && selected.securityDeposit !== null && (
+                    <div className="detail-item">
+                      <span className="detail-label">Security Deposit</span>
+                      <span className="detail-value">₹{selected.securityDeposit.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  {selected.availableFrom && (
+                    <div className="detail-item">
+                      <span className="detail-label">Available From</span>
+                      <span className="detail-value">{new Date(selected.availableFrom).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  {selected.preferredTenant && (
+                    <div className="detail-item">
+                      <span className="detail-label">Preferred Tenant</span>
+                      <span className="detail-value">{selected.preferredTenant}</span>
+                    </div>
+                  )}
+                  {selected.petFriendly !== undefined && selected.petFriendly !== null && (
+                    <div className="detail-item">
+                      <span className="detail-label">Pet Friendly</span>
+                      <span className="detail-value">{selected.petFriendly ? 'Yes' : 'No'}</span>
+                    </div>
+                  )}
+                  {selected.maintenanceCharges !== undefined && selected.maintenanceCharges !== null && (
+                    <div className="detail-item">
+                      <span className="detail-label">Maintenance / mo</span>
+                      <span className="detail-value">₹{selected.maintenanceCharges.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  {selected.leaseDuration !== undefined && selected.leaseDuration !== null && (
+                    <div className="detail-item">
+                      <span className="detail-label">Lease Duration</span>
+                      <span className="detail-value">{selected.leaseDuration} Months</span>
+                    </div>
+                  )}
+                  {selected.lockInPeriod !== undefined && selected.lockInPeriod !== null && (
+                    <div className="detail-item">
+                      <span className="detail-label">Lock-in Period</span>
+                      <span className="detail-value">{selected.lockInPeriod} Months</span>
+                    </div>
+                  )}
+                  {selected.camCharges !== undefined && selected.camCharges !== null && (
+                    <div className="detail-item">
+                      <span className="detail-label">CAM Charges / mo</span>
+                      <span className="detail-value">₹{selected.camCharges.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  {selected.plotAllowedUse && (
+                    <div className="detail-item">
+                      <span className="detail-label">Plot Allowed Use</span>
+                      <span className="detail-value">{selected.plotAllowedUse}</span>
+                    </div>
+                  )}
+                </>
+              )}
+
               {selected.description && (
                 <div className="detail-item detail-value-full">
                   <span className="detail-label">Description</span>

@@ -60,6 +60,17 @@ model Property {
   lng          Float?
   reviewStatus String   @default("pending") // "pending" | "reviewed" | "deleted"
 
+  // Rent-specific fields (all optional)
+  securityDeposit    Int?
+  availableFrom      String?
+  preferredTenant    String?
+  petFriendly        Boolean?
+  maintenanceCharges Int?
+  leaseDuration      Int?
+  lockInPeriod       Int?
+  camCharges         Int?
+  plotAllowedUse     String?
+
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
 
@@ -144,6 +155,7 @@ model Shop {
   address     String?
   lat         Float?
   lng         Float?
+  images      String[] @default([])
   reviewStatus String  @default("pending") // "pending" | "reviewed" | "deleted"
 
   agentId String

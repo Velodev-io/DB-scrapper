@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Property, type Paginated } from '@carry/shared'
 import { getPendingRecords } from '../../lib/uploadQueue'
+import { PropertyDetailModal } from './PropertyDetailModal'
 
 export function PropertyList() {
+  const navigate = useNavigate()
   const { getToken } = useAuth()
   const [properties, setProperties] = useState<Property[]>([])
   const [pendingProps, setPendingProps] = useState<any[]>([])
@@ -12,6 +14,7 @@ export function PropertyList() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const limit = 10
 
   const fetchProperties = useCallback(async (pageNum: number, append: boolean) => {
@@ -71,10 +74,29 @@ export function PropertyList() {
   const allProperties = [...pendingProps, ...properties]
   const hasMore = properties.length < total
 
+  const handleSaved = (updated: Property) => {
+    setProperties(prev => prev.map(p => p.id === updated.id ? updated : p))
+    setSelectedProperty(null)
+  }
+
   return (
     <div className="page" style={{ paddingBottom: 'calc(var(--nav-height) + 80px)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 className="page-title" style={{ marginBottom: 0 }}>My Properties</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            style={{
+              background: 'none', border: 'none', padding: '0.25rem',
+              fontSize: '1.5rem', cursor: 'pointer', color: 'var(--ink)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+            aria-label="Back"
+          >
+            ←
+          </button>
+          <h1 className="page-title" style={{ marginBottom: 0 }}>My Properties</h1>
+        </div>
         <Link to="/properties/new" className="chip active" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', minHeight: '36px' }}>
           + New
         </Link>
@@ -84,7 +106,16 @@ export function PropertyList() {
 
       <div className="list-container">
         {allProperties.map(prop => (
-          <div key={prop.id} className="record-card">
+          <div
+            key={prop.id}
+            className="record-card"
+            style={{ cursor: prop.isPendingSync ? 'default' : 'pointer' }}
+            onClick={() => {
+              if (!prop.isPendingSync) {
+                setSelectedProperty(prop as Property)
+              }
+            }}
+          >
             {prop.images && prop.images[0] && !prop.isPendingSync ? (
               <img
                 src={img.thumb(prop.images[0])}
@@ -138,6 +169,14 @@ export function PropertyList() {
           </button>
         )}
       </div>
+
+      {selectedProperty && (
+        <PropertyDetailModal
+          property={selectedProperty}
+          onClose={() => setSelectedProperty(null)}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   )
 }

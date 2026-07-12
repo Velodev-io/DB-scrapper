@@ -219,3 +219,126 @@
   margin: 0;
   text-align: right;
 }
+
+/* Source Picker Dialog (Bottom Sheet / Modal) */
+.photo-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(28, 27, 24, 0.5); /* Semi-transparent --ink */
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  animation: pickerFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.photo-picker-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 100%);
+  width: 100%;
+  max-width: 480px;
+  background-color: var(--bone);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+  padding: 1.5rem 1.25rem 2rem 1.25rem;
+  box-sizing: border-box;
+  z-index: 1000;
+  animation: pickerSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pickerFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pickerSlideUp {
+  from { transform: translate(-50%, 100%); }
+  to { transform: translate(-50%, 0); }
+}
+
+.photo-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.photo-picker-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.photo-picker-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--concrete);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.photo-picker-close-btn:hover {
+  color: var(--ink);
+}
+
+.photo-picker-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.photo-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border: 1.5px solid var(--sand);
+  background-color: var(--white);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.photo-picker-option:hover {
+  border-color: var(--ochre);
+  background-color: rgba(184, 115, 51, 0.04);
+}
+
+.photo-picker-option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ochre);
+  flex-shrink: 0;
+}
+
+.photo-picker-cancel-btn {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.875rem;
+  border: 1.5px solid transparent;
+  background-color: transparent;
+  border-radius: var(--radius-md);
+  color: var(--concrete);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.photo-picker-cancel-btn:hover {
+  background-color: var(--sand);
+  color: var(--ink);
+}

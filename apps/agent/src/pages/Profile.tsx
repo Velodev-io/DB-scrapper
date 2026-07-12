@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { UserButton, useUser, useAuth } from '@clerk/clerk-react'
-import { api, type Property, type Labour, type Paginated } from '@carry/shared'
+import { api, type Property, type Labour, type Shop, type Paginated } from '@carry/shared'
 
 export function Profile() {
   const { user } = useUser()
   const { getToken } = useAuth()
+  const navigate = useNavigate()
   const [propertyCount, setPropertyCount] = useState<number | null>(null)
   const [labourCount, setLabourCount] = useState<number | null>(null)
+  const [shopCount, setShopCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -15,12 +18,14 @@ export function Profile() {
       try {
         const token = await getToken()
         if (!token) return
-        const [propsRes, labourRes] = await Promise.all([
+        const [propsRes, labourRes, shopsRes] = await Promise.all([
           api.get<Paginated<Property>>('/properties/mine?page=1&limit=1', token),
           api.get<Paginated<Labour>>('/labour/mine?page=1&limit=1', token),
+          api.get<Paginated<Shop>>('/shops/mine?page=1&limit=1', token),
         ])
         setPropertyCount(propsRes.total)
         setLabourCount(labourRes.total)
+        setShopCount(shopsRes.total)
       } catch (err: any) {
         setError(err.message || 'Failed to load statistics')
       } finally {
@@ -29,6 +34,12 @@ export function Profile() {
     }
     fetchStats()
   }, [getToken])
+
+  const statCards = [
+    { count: propertyCount, label: 'Properties', route: '/properties', emoji: '🏠' },
+    { count: labourCount,   label: 'Labour',     route: '/labour',     emoji: '👷' },
+    { count: shopCount,     label: 'Shops',       route: '/shops',      emoji: '🏪' },
+  ]
 
   return (
     <div className="page" style={{ paddingBottom: 'calc(var(--nav-height) + 40px)' }}>
@@ -57,15 +68,29 @@ export function Profile() {
           {error}
         </div>
       ) : (
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value">{propertyCount ?? 0}</div>
-            <div className="stat-label">Properties</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{labourCount ?? 0}</div>
-            <div className="stat-label">Labour</div>
-          </div>
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          {statCards.map(({ count, label, route }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => navigate(route)}
+              className="stat-card"
+              style={{
+                cursor: 'pointer',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+            >
+              <div className="stat-value">{count ?? 0}</div>
+              <div className="stat-label">{label}</div>
+            </button>
+          ))}
         </div>
       )}
 
@@ -78,4 +103,3 @@ export function Profile() {
     </div>
   )
 }
-

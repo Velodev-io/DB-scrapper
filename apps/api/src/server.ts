@@ -15,9 +15,27 @@ import uploadsRoutes from './routes/uploads.js'
 import webhookRoutes from './routes/webhooks.js'
 
 const PORT = Number(process.env.PORT ?? 4001)
-const CORS_ORIGIN = (process.env.CORS_ORIGIN ?? 'http://localhost:5181,http://localhost:5182,capacitor://localhost,http://localhost')
-  .split(',')
-  .map(s => s.trim())
+
+// CORS_ORIGIN can be a comma-separated list of exact origins.
+// We also build an explicit set and use a dynamic function so that
+// mismatches (trailing slash, wrong port) are immediately visible in logs
+// rather than silently returning a 403 preflight error.
+const CORS_ORIGIN_SET = new Set(
+  (process.env.CORS_ORIGIN ?? 'http://localhost:5181,http://localhost:5182,capacitor://localhost,http://localhost')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+)
+
+function isCorsAllowed(origin: string): boolean {
+  if (CORS_ORIGIN_SET.has(origin)) return true
+  // In development: allow any LAN IP (192.168.x.x or 10.x.x.x) on any port —
+  // avoids having to update CORS_ORIGIN every time the dev machine's IP changes.
+  if (process.env.NODE_ENV !== 'production') {
+    if (/^http:\/\/(192\.168\.|10\.)/.test(origin)) return true
+  }
+  return false
+}
 
 // ── Sentry (error tracking) ──────────────────────────────────────────
 if (process.env.SENTRY_DSN) {
@@ -38,7 +56,13 @@ export async function buildApp() {
 
   // ── CORS ────────────────────────────────────────────────────────────
   await app.register(cors, {
-    origin: CORS_ORIGIN,
+    origin: (origin, cb) => {
+      // No origin header = server-to-server / curl — allow
+      if (!origin) return cb(null, true)
+      if (isCorsAllowed(origin)) return cb(null, true)
+      app.log.warn({ origin }, 'CORS rejected origin')
+      cb(new Error(`CORS: origin '${origin}' not allowed`), false)
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   })
