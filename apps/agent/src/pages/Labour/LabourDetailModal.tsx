@@ -135,8 +135,9 @@ export function LabourDetailModal({ labour, onClose, onSaved }: Props) {
         style={{
           position: 'fixed',
           bottom: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
+          left: 0,
+          right: 0,
+          margin: '0 auto',
           width: '100%',
           maxWidth: '480px',
           maxHeight: '90dvh',
@@ -318,7 +319,7 @@ export function LabourDetailModal({ labour, onClose, onSaved }: Props) {
             </div>
 
             {/* Existing profile photo */}
-            {form.profilePhotoUrl && (
+            {form.profilePhotoUrl ? (
               <div className="form-field">
                 <label className="label">Current Profile Photo</label>
                 <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -337,14 +338,14 @@ export function LabourDetailModal({ labour, onClose, onSaved }: Props) {
                   >✕</button>
                 </div>
               </div>
+            ) : (
+              <div className="form-field" style={{ marginTop: '0.5rem' }}>
+                <label className="label" style={{ marginBottom: '0.5rem' }}>
+                  Add Profile Photo
+                </label>
+                <PhotoUploader scope="labour-edit-profile" folder="labour" label="Add Profile Photo" maxPhotos={1} />
+              </div>
             )}
-
-            <div className="form-field" style={{ marginTop: '0.5rem' }}>
-              <label className="label" style={{ marginBottom: '0.5rem' }}>
-                {form.profilePhotoUrl ? 'Replace Profile Photo' : 'Add Profile Photo'}
-              </label>
-              <PhotoUploader scope="labour-edit-profile" folder="labour" label="Add Profile Photo" maxPhotos={1} />
-            </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '2rem', padding: '1.25rem 0 0', borderTop: '1px solid var(--sand)' }}>
               <button type="button" className="btn-primary" style={{ background: 'var(--sand)', color: 'var(--ink)', flex: 1 }}
