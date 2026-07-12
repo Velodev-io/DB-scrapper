@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { api, type Shop, type Paginated } from '@carry/shared'
+import { api, img, type Shop, type Paginated } from '@carry/shared'
 import { getPendingRecords } from '../../lib/uploadQueue'
 import { ShopDetailModal } from './ShopDetailModal'
 
@@ -115,9 +115,18 @@ export function ShopList() {
               }
             }}
           >
-            <div className="record-card-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>
-              🏪
-            </div>
+            {shop.images && shop.images.length > 0 && !shop.isPendingSync ? (
+              <img
+                src={img.thumb(shop.images[0])}
+                alt={shop.shopName}
+                className="record-card-thumb"
+                loading="lazy"
+              />
+            ) : (
+              <div className="record-card-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>
+                🏪
+              </div>
+            )}
             <div className="record-card-body">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                 <div className="record-card-title">{shop.shopName}</div>

@@ -1,7 +1,10 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { api, type Shop, SHOP_TYPES } from '@carry/shared'
+import { api, img, type Shop, SHOP_TYPES } from '@carry/shared'
 import { LocationPicker } from '../../components/LocationPicker'
+import { PhotoUploader } from '../../components/PhotoUploader/PhotoUploader'
+import { uploadManager } from '../../lib/UploadManager'
+import { usePhotoUpload } from '../../hooks/usePhotoUpload'
 
 interface Props {
   shop: Shop
@@ -11,9 +14,12 @@ interface Props {
 
 export function ShopDetailModal({ shop, onClose, onSaved }: Props) {
   const { getToken } = useAuth()
+  const { stats } = usePhotoUpload('shop-edit-images')
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const isUploading = stats.uploading > 0 || stats.queued > 0
 
   const [form, setForm] = useState({
     shopName:    shop.shopName,
@@ -23,13 +29,24 @@ export function ShopDetailModal({ shop, onClose, onSaved }: Props) {
     address:     shop.address ?? '',
     lat:         shop.lat as number | undefined,
     lng:         shop.lng as number | undefined,
+    images:      [...(shop.images ?? [])],
   })
 
   const submittingRef = useRef(false)
   const datalistId = 'shop-type-suggestions'
 
+  useEffect(() => {
+    if (mode === 'edit') {
+      uploadManager.clear('shop-edit-images')
+    }
+  }, [mode])
+
   function update(patch: Partial<typeof form>) {
     setForm(f => ({ ...f, ...patch }))
+  }
+
+  function removeExistingImage(pubId: string) {
+    setForm(f => ({ ...f, images: f.images.filter(id => id !== pubId) }))
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -48,6 +65,10 @@ export function ShopDetailModal({ shop, onClose, onSaved }: Props) {
       const token = await getToken()
       if (!token) throw new Error('Not authenticated')
 
+      const newImageIds = uploadManager
+        .getUploadedIds('shop-edit-images')
+        .filter(id => !id.startsWith('__queued__:'))
+
       const payload = {
         shopName:    form.shopName,
         shopType:    form.shopType,
@@ -56,9 +77,11 @@ export function ShopDetailModal({ shop, onClose, onSaved }: Props) {
         address:     form.address || null,
         lat:         form.lat ?? null,
         lng:         form.lng ?? null,
+        images:      [...form.images, ...newImageIds],
       }
 
       const updated = await api.patch<Shop>(`/shops/${shop.id}/agent`, payload, token)
+      uploadManager.clear('shop-edit-images')
       onSaved(updated)
     } catch (err: any) {
       setError(err.message || 'Failed to save changes')
@@ -154,6 +177,26 @@ export function ShopDetailModal({ shop, onClose, onSaved }: Props) {
             {(shop.lat || shop.lng) && (
               <DetailRow label="GPS" value={`${shop.lat?.toFixed(5)}, ${shop.lng?.toFixed(5)}`} />
             )}
+
+            {/* Gallery */}
+            {shop.images && shop.images.length > 0 && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--concrete)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+                  Photos
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {shop.images.map(id => (
+                    <img
+                      key={id}
+                      src={img.thumb(id)}
+                      alt=""
+                      style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--sand)' }}
+                      loading="lazy"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -210,13 +253,44 @@ export function ShopDetailModal({ shop, onClose, onSaved }: Props) {
                 onChange={(lat, lng) => update({ lat, lng })} />
             </div>
 
+            {/* Existing images with remove button */}
+            {form.images.length > 0 && (
+              <div className="form-field">
+                <label className="label">Current Photos</label>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {form.images.map(id => (
+                    <div key={id} style={{ position: 'relative' }}>
+                      <img src={img.thumb(id)} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--sand)' }} />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(id)}
+                        style={{
+                          position: 'absolute', top: -6, right: -6,
+                          width: 20, height: 20, borderRadius: '50%',
+                          background: '#c0392b', color: '#fff', border: 'none',
+                          fontSize: '0.7rem', cursor: 'pointer', display: 'flex',
+                          alignItems: 'center', justifyContent: 'center', fontWeight: 700,
+                        }}
+                        aria-label="Remove photo"
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="form-field" style={{ marginTop: '0.5rem' }}>
+              <label className="label" style={{ marginBottom: '0.5rem' }}>Add More Photos (Max 5)</label>
+              <PhotoUploader scope="shop-edit-images" folder="shops" label="Add Photos" maxPhotos={5 - form.images.length} />
+            </div>
+
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '2rem', padding: '1.25rem 0 0', borderTop: '1px solid var(--sand)' }}>
               <button type="button" className="btn-primary" style={{ background: 'var(--sand)', color: 'var(--ink)', flex: 1 }}
                 onClick={() => { setMode('view'); setError(null) }}>
                 Cancel
               </button>
-              <button type="submit" className="btn-primary btn-ochre" style={{ flex: 1 }} disabled={saving}>
-                {saving ? 'Saving…' : 'Save Changes'}
+              <button type="submit" className="btn-primary btn-ochre" style={{ flex: 1 }} disabled={saving || isUploading}>
+                {saving ? 'Saving…' : (isUploading ? 'Uploading…' : 'Save Changes')}
               </button>
             </div>
           </form>
