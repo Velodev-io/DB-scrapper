@@ -138,7 +138,6 @@ export function PhotoUploader({ label = 'Add Photos', maxPhotos, scope = 'defaul
                 onClick={(e) => {
                   e.stopPropagation()
                   cameraInputRef.current?.click()
-                  setShowPicker(false)
                 }}
               >
                 <span className="photo-picker-option-icon">
@@ -156,7 +155,6 @@ export function PhotoUploader({ label = 'Add Photos', maxPhotos, scope = 'defaul
                 onClick={(e) => {
                   e.stopPropagation()
                   libraryInputRef.current?.click()
-                  setShowPicker(false)
                 }}
               >
                 <span className="photo-picker-option-icon">
@@ -175,7 +173,6 @@ export function PhotoUploader({ label = 'Add Photos', maxPhotos, scope = 'defaul
                 onClick={(e) => {
                   e.stopPropagation()
                   filesInputRef.current?.click()
-                  setShowPicker(false)
                 }}
               >
                 <span className="photo-picker-option-icon">
@@ -186,7 +183,7 @@ export function PhotoUploader({ label = 'Add Photos', maxPhotos, scope = 'defaul
                 Browse Files
               </button>
             </div>
-            
+
             <button
               type="button"
               className="photo-picker-cancel-btn"
