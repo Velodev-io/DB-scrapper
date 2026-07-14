@@ -3,7 +3,14 @@ import { SignedIn, SignedOut, SignIn, useUser, useAuth } from '@clerk/clerk-reac
 import { lazy, Suspense, useEffect, useRef } from 'react'
 import { BottomNav } from './components/BottomNav'
 import { NetworkBanner } from './components/NetworkBanner'
-import { flushUploadQueueForeground, flushPendingRecordsForeground } from './lib/uploadQueue'
+import {
+  flushUploadQueueForeground,
+  flushPendingRecordsForeground,
+  saveAuthToken,
+  refreshBadge,
+  startPeriodicFlush,
+  stopPeriodicFlush,
+} from './lib/uploadQueue'
 
 // Lazy-load all pages — each route chunk downloads only when navigated to.
 // This cuts the critical-path JS from 405 kB to ~60 kB on first load.
@@ -90,10 +97,32 @@ export default function App() {
 
   useEffect(() => {
     if (!isSignedIn) return
+
+    // 1. Expose token getter for the foreground flush functions
     window.__clerkGetToken = () => getTokenRef.current()
-    // Trigger offline synchronization now that the Clerk authentication token is set
+
+    // 2. Persist JWT in IDB so the Service Worker can sync when app is closed
+    const persistToken = async () => {
+      const token = await getTokenRef.current()
+      if (token) await saveAuthToken(token).catch(() => {})
+    }
+    persistToken()
+    const tokenRefreshId = setInterval(persistToken, 55 * 60 * 1000)
+
+    // 3. Trigger foreground sync now that token is available
     flushUploadQueueForeground().catch(console.error)
     flushPendingRecordsForeground().catch(console.error)
+
+    // 4. Start periodic flush every 30 seconds while app is open
+    startPeriodicFlush()
+
+    // 5. Refresh app badge count
+    refreshBadge().catch(() => {})
+
+    return () => {
+      clearInterval(tokenRefreshId)
+      stopPeriodicFlush()
+    }
   }, [isSignedIn])
 
   return (

@@ -1,57 +1,35 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Shop, type Paginated } from '@carry/shared'
 import { getPendingRecords } from '../../lib/uploadQueue'
+import { useOfflineList, formatCachedAt } from '../../hooks/useOfflineList'
 import { ShopDetailModal } from './ShopDetailModal'
 
 export function ShopList() {
   const navigate = useNavigate()
   const { getToken } = useAuth()
   const getTokenRef = useRef(getToken)
-  const [shopList, setShopList] = useState<Shop[]>([])
-  const [pendingShops, setPendingShops] = useState<any[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
-  const limit = 10
+  const [pendingShops,  setPendingShops]  = useState<any[]>([])
+  const [selectedShop,  setSelectedShop]  = useState<Shop | null>(null)
 
-  useEffect(() => {
-    getTokenRef.current = getToken
-  }, [getToken])
+  useEffect(() => { getTokenRef.current = getToken }, [getToken])
 
-  const fetchShops = useCallback(async (pageNum: number, append: boolean) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const token = await getTokenRef.current()
-      if (!token) throw new Error('Not authenticated')
+  // ── Offline-aware fetch ───────────────────────────────────────────────────
+  const {
+    data: shopList,
+    loading,
+    error,
+    fromCache,
+    cachedAt,
+    refetch,
+  } = useOfflineList<Shop>('shops_mine', async () => {
+    const token = await getTokenRef.current()
+    if (!token) throw new Error('Not authenticated')
+    return api.get<Paginated<Shop>>('/shops/mine?page=1&limit=50', token)
+  })
 
-      const res = await api.get<Paginated<Shop>>(
-        `/shops/mine?page=${pageNum}&limit=${limit}`,
-        token
-      )
-
-      if (append) {
-        setShopList(prev => [...prev, ...res.data])
-      } else {
-        setShopList(res.data)
-      }
-      setTotal(res.total)
-      setPage(pageNum)
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch shops')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchShops(1, false)
-  }, [fetchShops])
-
+  // ── Pending offline records ───────────────────────────────────────────────
   useEffect(() => {
     async function loadPending() {
       try {
@@ -59,12 +37,12 @@ export function ShopList() {
         const shops = records
           .filter(r => r.type === 'shop')
           .map(r => ({
-            id:          r.id,
-            shopName:    r.payload.shopName,
-            shopType:    r.payload.shopType,
-            keeperName:  r.payload.keeperName,
-            keeperPhone: r.payload.keeperPhone,
-            address:     r.payload.address,
+            id:           r.id,
+            shopName:     r.payload.shopName,
+            shopType:     r.payload.shopType,
+            keeperName:   r.payload.keeperName,
+            keeperPhone:  r.payload.keeperPhone,
+            address:      r.payload.address,
             isPendingSync: true,
           }))
         setPendingShops(shops)
@@ -76,16 +54,15 @@ export function ShopList() {
   }, [])
 
   const allShops = [...pendingShops, ...shopList]
-  const hasMore = shopList.length < total
 
-  const handleSaved = (updated: Shop) => {
-    setShopList(prev => prev.map(s => s.id === updated.id ? updated : s))
+  const handleSaved = (_updated: Shop) => {
+    refetch()
     setSelectedShop(null)
   }
 
   return (
     <div className="page" style={{ paddingBottom: 'calc(var(--nav-height) + 80px)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
             type="button"
@@ -106,7 +83,36 @@ export function ShopList() {
         </Link>
       </div>
 
-      {error && <div className="form-error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
+      {/* Stale data notice — shown when displaying cached offline data */}
+      {fromCache && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'rgba(200, 134, 26, 0.1)',
+          border: '1px solid rgba(200, 134, 26, 0.3)',
+          borderRadius: '0.5rem',
+          padding: '0.6rem 0.85rem',
+          marginBottom: '1rem',
+          fontSize: '0.8rem',
+          color: 'var(--ochre)',
+          gap: '0.5rem',
+        }}>
+          <span>
+            🔴 Offline — cached data
+            {cachedAt && <span style={{ color: 'var(--concrete)', marginLeft: '0.3rem' }}>
+              · Last synced {formatCachedAt(cachedAt)}
+            </span>}
+          </span>
+          <button
+            type="button"
+            onClick={refetch}
+            style={{ background: 'none', border: 'none', color: 'var(--ochre)', fontSize: '0.8rem', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {error && !fromCache && <div className="form-error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <div className="list-container">
         {allShops.map(shop => (
@@ -115,9 +121,7 @@ export function ShopList() {
             className="record-card"
             style={{ cursor: shop.isPendingSync ? 'default' : 'pointer' }}
             onClick={() => {
-              if (!shop.isPendingSync) {
-                setSelectedShop(shop as Shop)
-              }
+              if (!shop.isPendingSync) setSelectedShop(shop as Shop)
             }}
           >
             {shop.images && shop.images.length > 0 && !shop.isPendingSync ? (
@@ -156,21 +160,10 @@ export function ShopList() {
           </div>
         )}
 
-        {loading && (
+        {loading && shopList.length === 0 && (
           <div style={{ textAlign: 'center', padding: '1.5rem' }}>
             Loading shops…
           </div>
-        )}
-
-        {hasMore && !loading && (
-          <button
-            type="button"
-            className="btn-primary"
-            style={{ marginTop: '1rem', minHeight: '44px' }}
-            onClick={() => fetchShops(page + 1, true)}
-          >
-            Load More
-          </button>
         )}
       </div>
 

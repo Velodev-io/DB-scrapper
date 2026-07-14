@@ -1,5 +1,31 @@
 import { openDB } from 'idb'
 
+// ── Auth Token Store (for Service Worker access when app is closed) ──────────
+const authDbPromise = openDB('carry-auth', 1, {
+  upgrade(db) {
+    db.createObjectStore('auth')
+  },
+})
+
+export async function saveAuthToken(token: string): Promise<void> {
+  const db = await authDbPromise
+  await db.put('auth', { token, storedAt: Date.now() }, 'jwt')
+}
+
+export async function loadAuthToken(): Promise<string | null> {
+  const db = await authDbPromise
+  const entry = await db.get('auth', 'jwt') as { token: string, storedAt: number } | undefined
+  if (!entry) return null
+  // Treat tokens older than 55 minutes as expired (Clerk tokens expire at 60 min)
+  if (Date.now() - entry.storedAt > 55 * 60 * 1000) return null
+  return entry.token
+}
+
+export async function clearAuthToken(): Promise<void> {
+  const db = await authDbPromise
+  await db.delete('auth', 'jwt')
+}
+
 export interface PendingUpload {
   id?:       number
   localId:   string
@@ -305,5 +331,45 @@ export async function flushPendingRecordsForeground() {
     }
   } finally {
     isFlushingRecords = false
+  }
+}
+
+// ── App Badge ────────────────────────────────────────────────────────────────
+// Shows the count of pending uploads + records on the Android launcher icon.
+export async function refreshBadge(): Promise<void> {
+  try {
+    const [uploads, records] = await Promise.all([getPendingUploads(), getPendingRecords()])
+    const total = uploads.length + records.length
+    if ('setAppBadge' in navigator) {
+      if (total > 0) {
+        await (navigator as any).setAppBadge(total)
+      } else {
+        await (navigator as any).clearAppBadge()
+      }
+    }
+  } catch {
+    // Badge API not available — ignore
+  }
+}
+
+// ── Periodic Flush ───────────────────────────────────────────────────────────
+// Retries both queues every 30 seconds while the app is open.
+// Complements Background Sync for cases where the SW doesn't fire.
+let _flushIntervalId: ReturnType<typeof setInterval> | null = null
+
+export function startPeriodicFlush(intervalMs = 30_000): void {
+  if (_flushIntervalId !== null) return  // already running
+  _flushIntervalId = setInterval(async () => {
+    if (!navigator.onLine) return
+    await flushUploadQueueForeground().catch(() => {})
+    await flushPendingRecordsForeground().catch(() => {})
+    await refreshBadge().catch(() => {})
+  }, intervalMs)
+}
+
+export function stopPeriodicFlush(): void {
+  if (_flushIntervalId !== null) {
+    clearInterval(_flushIntervalId)
+    _flushIntervalId = null
   }
 }

@@ -1,57 +1,35 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { api, img, type Property, type Paginated } from '@carry/shared'
 import { getPendingRecords } from '../../lib/uploadQueue'
+import { useOfflineList, formatCachedAt } from '../../hooks/useOfflineList'
 import { PropertyDetailModal } from './PropertyDetailModal'
 
 export function PropertyList() {
   const navigate = useNavigate()
   const { getToken } = useAuth()
   const getTokenRef = useRef(getToken)
-  const [properties, setProperties] = useState<Property[]>([])
-  const [pendingProps, setPendingProps] = useState<any[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [pendingProps,     setPendingProps]     = useState<any[]>([])
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
-  const limit = 10
 
-  useEffect(() => {
-    getTokenRef.current = getToken
-  }, [getToken])
+  useEffect(() => { getTokenRef.current = getToken }, [getToken])
 
-  const fetchProperties = useCallback(async (pageNum: number, append: boolean) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const token = await getTokenRef.current()
-      if (!token) throw new Error('Not authenticated')
+  // ── Offline-aware fetch ───────────────────────────────────────────────────
+  const {
+    data: properties,
+    loading,
+    error,
+    fromCache,
+    cachedAt,
+    refetch,
+  } = useOfflineList<Property>('properties_mine', async () => {
+    const token = await getTokenRef.current()
+    if (!token) throw new Error('Not authenticated')
+    return api.get<Paginated<Property>>('/properties/mine?page=1&limit=50', token)
+  })
 
-      const res = await api.get<Paginated<Property>>(
-        `/properties/mine?page=${pageNum}&limit=${limit}`,
-        token
-      )
-
-      if (append) {
-        setProperties(prev => [...prev, ...res.data])
-      } else {
-        setProperties(res.data)
-      }
-      setTotal(res.total)
-      setPage(pageNum)
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch properties')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchProperties(1, false)
-  }, [fetchProperties])
-
+  // ── Pending offline records ───────────────────────────────────────────────
   useEffect(() => {
     async function loadPending() {
       try {
@@ -59,13 +37,13 @@ export function PropertyList() {
         const props = records
           .filter(r => r.type === 'property')
           .map(r => ({
-            id: r.id,
-            title: r.payload.title,
+            id:           r.id,
+            title:        r.payload.title,
             propertyType: r.payload.propertyType,
-            listingType: r.payload.listingType,
-            priceLabel: r.payload.priceLabel,
-            locality: r.payload.locality,
-            city: r.payload.city,
+            listingType:  r.payload.listingType,
+            priceLabel:   r.payload.priceLabel,
+            locality:     r.payload.locality,
+            city:         r.payload.city,
             isPendingSync: true,
           }))
         setPendingProps(props)
@@ -77,16 +55,15 @@ export function PropertyList() {
   }, [])
 
   const allProperties = [...pendingProps, ...properties]
-  const hasMore = properties.length < total
 
-  const handleSaved = (updated: Property) => {
-    setProperties(prev => prev.map(p => p.id === updated.id ? updated : p))
+  const handleSaved = (_updated: Property) => {
+    refetch()
     setSelectedProperty(null)
   }
 
   return (
     <div className="page" style={{ paddingBottom: 'calc(var(--nav-height) + 80px)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
             type="button"
@@ -107,7 +84,36 @@ export function PropertyList() {
         </Link>
       </div>
 
-      {error && <div className="form-error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
+      {/* Stale data notice — shown when displaying cached offline data */}
+      {fromCache && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'rgba(200, 134, 26, 0.1)',
+          border: '1px solid rgba(200, 134, 26, 0.3)',
+          borderRadius: '0.5rem',
+          padding: '0.6rem 0.85rem',
+          marginBottom: '1rem',
+          fontSize: '0.8rem',
+          color: 'var(--ochre)',
+          gap: '0.5rem',
+        }}>
+          <span>
+            🔴 Offline — cached data
+            {cachedAt && <span style={{ color: 'var(--concrete)', marginLeft: '0.3rem' }}>
+              · Last synced {formatCachedAt(cachedAt)}
+            </span>}
+          </span>
+          <button
+            type="button"
+            onClick={refetch}
+            style={{ background: 'none', border: 'none', color: 'var(--ochre)', fontSize: '0.8rem', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {error && !fromCache && <div className="form-error-msg" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <div className="list-container">
         {allProperties.map(prop => (
@@ -116,9 +122,7 @@ export function PropertyList() {
             className="record-card"
             style={{ cursor: prop.isPendingSync ? 'default' : 'pointer' }}
             onClick={() => {
-              if (!prop.isPendingSync) {
-                setSelectedProperty(prop as Property)
-              }
+              if (!prop.isPendingSync) setSelectedProperty(prop as Property)
             }}
           >
             {prop.images && prop.images[0] && !prop.isPendingSync ? (
@@ -151,27 +155,16 @@ export function PropertyList() {
           </div>
         ))}
 
-        {properties.length === 0 && !loading && (
+        {allProperties.length === 0 && !loading && (
           <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--concrete)' }}>
             No records yet — tap the button to submit your first one
           </div>
         )}
 
-        {loading && (
+        {loading && properties.length === 0 && (
           <div style={{ textAlign: 'center', padding: '1.5rem' }}>
             Loading properties…
           </div>
-        )}
-
-        {hasMore && !loading && (
-          <button
-            type="button"
-            className="btn-primary"
-            style={{ marginTop: '1rem', minHeight: '44px' }}
-            onClick={() => fetchProperties(page + 1, true)}
-          >
-            Load More
-          </button>
         )}
       </div>
 
