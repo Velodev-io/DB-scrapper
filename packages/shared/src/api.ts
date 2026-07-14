@@ -16,7 +16,10 @@ async function request<T>(
   const controller = new AbortController()
   const timerId = setTimeout(() => controller.abort(), timeout)
 
-  const base = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:4001/api/v1'
+  const base =
+    (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_BASE) ||
+    (import.meta as any).env?.VITE_API_BASE ||
+    'http://localhost:4001/api/v1'
 
   const headers: Record<string, string> = {
     // Only set Content-Type when sending a body — Fastify rejects bodyless
@@ -27,7 +30,8 @@ async function request<T>(
   }
 
   try {
-    const res = await fetch(`${base}${path}`, {
+    const url = path.startsWith('http://') || path.startsWith('https://') ? path : `${base}${path}`
+    const res = await fetch(url, {
       ...init,
       signal: controller.signal,
       headers,

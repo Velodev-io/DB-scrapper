@@ -3,7 +3,9 @@
 // This means changing quality/size settings requires no DB migration.
 
 const getCloud = () =>
-  (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME ?? 'carry-construction'
+  (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME) ||
+  (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME ||
+  'piwpzbke'
 
 const base = () => `https://res.cloudinary.com/${getCloud()}/image/upload`
 
