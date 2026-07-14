@@ -18,7 +18,7 @@ if ('serviceWorker' in navigator) {
   })
 }
 
-// Foreground fallback (critical for iOS PWAs and Capacitor WebViews)
+// Foreground fallback (critical for iOS PWAs where background sync is unavailable)
 window.addEventListener('load', () => {
   flushUploadQueueForeground().catch(console.error)
   flushPendingRecordsForeground().catch(console.error)

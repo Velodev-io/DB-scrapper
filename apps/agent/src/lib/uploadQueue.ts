@@ -113,7 +113,7 @@ export async function getPublicIdForLocalId(localId: string): Promise<string | u
   return item?.publicId
 }
 
-// Foreground queue flusher (essential fallback for iOS PWAs and Capacitor WebViews)
+// Foreground queue flusher (essential fallback for iOS PWAs where background sync is unavailable)
 let isFlushing = false
 export async function flushUploadQueueForeground() {
   if (isFlushing || !navigator.onLine) return
