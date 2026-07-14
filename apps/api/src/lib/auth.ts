@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { verifyToken } from '@clerk/backend'
+import { isProductionDatabase } from './db-guard.js'
 
 const CLERK_SECRET = process.env.CLERK_SECRET_KEY ?? ''
 // CLERK_JWT_KEY (PEM public key from Clerk Dashboard → API Keys → Show JWT public key)
@@ -25,6 +26,13 @@ const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes cache
 async function extractRoleFromJWT(request: FastifyRequest): Promise<{ role: string | null; sub: string | null }> {
   const header = request.headers.authorization ?? ''
   const token  = header.startsWith('Bearer ') ? header.slice(7) : ''
+
+  // Dev-only test bypass — disabled whenever DATABASE_URL points at the production
+  // Neon endpoint, so replaying this header can never grant access to real data.
+  // (NODE_ENV isn't reliably set across our local/Vercel run contexts.)
+  if (token === 'test-token-agent' && !isProductionDatabase()) {
+    return { role: 'agent', sub: 'user_dummy_agent' }
+  }
 
   if (!token || !CLERK_SECRET) return { role: null, sub: null }
 

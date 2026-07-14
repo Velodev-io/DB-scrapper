@@ -1,4 +1,8 @@
 import { PrismaClient } from '@prisma/client'
+import { assertNotProduction } from '../src/lib/db-guard.js'
+
+assertNotProduction()
+
 const prisma = new PrismaClient()
 
 async function main() {
