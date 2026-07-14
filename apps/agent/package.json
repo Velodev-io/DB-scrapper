@@ -9,6 +9,7 @@
     "preview": "vite preview --port 5181"
   },
   "dependencies": {
+    "@carry/logic": "*",
     "@carry/shared": "*",
     "@clerk/clerk-react": "^5.31.0",
     "@clerk/react": "^6.12.2",
@@ -23,9 +24,6 @@
     "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.4.1",
-    "@capacitor/cli": "^8.4.1",
-    "@capacitor/core": "^8.4.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.0.0",

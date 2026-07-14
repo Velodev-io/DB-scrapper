@@ -1,21 +1,12 @@
-import { useState } from 'react'
+// Web adapter: binds @carry/logic's useFormPersist factory to localStorage
+import { createFormPersistHook } from '@carry/logic/hooks/useFormPersist'
+import type { KVAdapter } from '@carry/logic'
 
-export function useFormPersist<T>(key: string, initial: T) {
-  const [form, setForm] = useState<T>(() => {
-    const saved = localStorage.getItem(key)
-    return saved ? { ...initial, ...JSON.parse(saved) } : initial
-  })
-
-  const update = (patch: Partial<T>) => {
-    const next = { ...form, ...patch }
-    setForm(next)
-    localStorage.setItem(key, JSON.stringify(next))
-  }
-
-  const clear = () => {
-    setForm(initial)
-    localStorage.removeItem(key)
-  }
-
-  return { form, update, clear }
+const localStorageAdapter: KVAdapter = {
+  get:    (key) => localStorage.getItem(key),
+  set:    (key, value) => localStorage.setItem(key, value),
+  delete: (key) => localStorage.removeItem(key),
 }
+
+export const useFormPersist = createFormPersistHook(localStorageAdapter)
+export type { FormPersistResult } from '@carry/logic/hooks/useFormPersist'

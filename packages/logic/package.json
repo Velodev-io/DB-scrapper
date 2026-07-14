@@ -1,0 +1,23 @@
+{
+  "name": "@carry/logic",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./forms/property": "./src/forms/property.ts",
+    "./forms/labour": "./src/forms/labour.ts",
+    "./forms/shop": "./src/forms/shop.ts",
+    "./hooks/useOfflineList": "./src/hooks/useOfflineList.ts",
+    "./hooks/useFormPersist": "./src/hooks/useFormPersist.ts",
+    "./lib/uuid": "./src/lib/uuid.ts",
+    "./lib/price": "./src/lib/price.ts"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
