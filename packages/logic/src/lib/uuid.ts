@@ -2,12 +2,14 @@
  * generateUUID — cross-platform UUID v4.
  *
  * crypto.randomUUID() is a Secure Context-only API (HTTPS / localhost) and
- * isn't implemented by Hermes at all. crypto.getRandomValues is available
- * everywhere that matters — natively in browsers on plain HTTP, and on React
- * Native once the app has imported the 'react-native-get-random-values'
- * polyfill (apps/agent-native/app/_layout.tsx does this first thing) — and
- * gives identical entropy, so it's the fallback rather than Math.random(),
- * which is not collision-resistant enough for IDs used as DB primary keys.
+ * isn't implemented by Hermes at all. On React Native, apps/agent-native's
+ * lib/cryptoPolyfill.ts (imported first thing in app/_layout.tsx) patches
+ * both crypto.randomUUID and crypto.getRandomValues onto the global object
+ * using expo-crypto, so this file stays platform-agnostic and just uses
+ * whichever the environment provides. The getRandomValues path is real
+ * CSPRNG entropy either way (native browser API or expo-crypto) — Math.random()
+ * is only a last resort, since it's not collision-resistant enough for IDs
+ * used as DB primary keys.
  */
 export function generateUUID(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

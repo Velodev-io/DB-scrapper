@@ -1,7 +1,8 @@
-// Must be the very first import: patches in global.crypto.getRandomValues,
-// which Hermes doesn't provide. @carry/logic's generateUUID() and Clerk both
-// need it — everything below this line may transitively depend on it.
-import 'react-native-get-random-values'
+// Must be the very first import: patches in global.crypto.getRandomValues /
+// randomUUID, which Hermes doesn't provide. @carry/logic's generateUUID()
+// and Clerk both need it — everything below this line may transitively
+// depend on it.
+import '../lib/cryptoPolyfill'
 import '../global.css'
 import { useEffect } from 'react'
 import { Stack } from 'expo-router'
