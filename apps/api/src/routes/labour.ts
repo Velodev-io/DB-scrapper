@@ -32,6 +32,10 @@ export default async function labourRoutes(app: FastifyInstance) {
       profilePhotoUrl, minimumWage, houseNo, street, locality, city, pincode,
       agentId, reviewStatus: 'pending',
     }
+    // Persist the client-generated offline id (same as properties/shops) — the
+    // app's queued-photo PATCH and duplicate-submit detection both look the
+    // record up by this id, so letting Prisma mint its own breaks both.
+    if (clientId) data.id = clientId
 
     try {
       const row = await prisma.labour.create({
