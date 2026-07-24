@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, RefreshControl } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { useAuth } from '@clerk/clerk-expo'
 import { api, img } from '@carry/shared'
 import type { Property, Paginated } from '@carry/shared'
@@ -46,7 +46,9 @@ export default function PropertyListScreen() {
     setPendingProps(props)
   }, [])
 
-  useEffect(() => { loadPending() }, [loadPending])
+  // On focus, not just mount — a record enqueued from the New screen after this
+  // tab first mounted would otherwise stay invisible until the next app launch.
+  useFocusEffect(useCallback(() => { loadPending() }, [loadPending]))
 
   const allProperties = [...pendingProps, ...properties]
 
@@ -54,7 +56,10 @@ export default function PropertyListScreen() {
     <TouchableOpacity
       style={styles.card}
       disabled={item.isPendingSync}
-      onPress={() => router.push(`/property/${item.id}` as any)}
+      onPress={() => router.push({
+        pathname: '/(tabs)/properties/[id]',
+        params: { id: item.id, record: JSON.stringify(item) },
+      } as any)}
       activeOpacity={0.8}
     >
       {item.images?.[0] && !item.isPendingSync ? (

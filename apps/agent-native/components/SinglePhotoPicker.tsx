@@ -1,6 +1,7 @@
 import { View, Text, Image, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native'
 import { useState } from 'react'
 import { generateUUID } from '@carry/logic'
+import { img } from '@carry/shared'
 import { pickFromGallery, takePhoto } from '../lib/photoPicker'
 import { compressImage } from '../lib/compress'
 import { enqueueUpload } from '../lib/uploadQueue'
@@ -49,10 +50,14 @@ export function SinglePhotoPicker({
   }
 
   if (localUri || value) {
+    // An existing record's `value` is a bare Cloudinary publicId, not a URL —
+    // needs img.thumb() to render. A `__queued__:` placeholder from an earlier
+    // session has no displayable source; fall back to the raw string as before.
+    const displayUri = localUri ?? (value && !value.startsWith('__queued__:') ? img.thumb(value) : value) ?? ''
     return (
       <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
         <Image
-          source={{ uri: localUri ?? value ?? '' }}
+          source={{ uri: displayUri }}
           style={{ width: 100, height: 100, borderRadius: 10 }}
         />
         <TouchableOpacity onPress={clear} style={styles.clearBtn}>

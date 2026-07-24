@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, RefreshControl } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { useAuth } from '@clerk/clerk-expo'
 import { api, img } from '@carry/shared'
 import type { Shop, Paginated } from '@carry/shared'
@@ -43,7 +43,9 @@ export default function ShopListScreen() {
     setPendingShops(shops)
   }, [])
 
-  useEffect(() => { loadPending() }, [loadPending])
+  // On focus, not just mount — a record enqueued from the New screen after this
+  // tab first mounted would otherwise stay invisible until the next app launch.
+  useFocusEffect(useCallback(() => { loadPending() }, [loadPending]))
 
   const allShops = [...pendingShops, ...shopList]
 
@@ -52,6 +54,10 @@ export default function ShopListScreen() {
       style={styles.card}
       disabled={item.isPendingSync}
       activeOpacity={0.8}
+      onPress={() => router.push({
+        pathname: '/(tabs)/shops/[id]',
+        params: { id: item.id, record: JSON.stringify(item) },
+      } as any)}
     >
       {item.images?.[0] && !item.isPendingSync ? (
         <Image

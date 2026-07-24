@@ -4,6 +4,7 @@ import {
   Alert, ActivityIndicator, StyleSheet,
 } from 'react-native'
 import { generateUUID } from '@carry/logic'
+import { img } from '@carry/shared'
 import { pickFromGallery, takePhoto } from '../lib/photoPicker'
 import { compressImage } from '../lib/compress'
 import { enqueueUpload } from '../lib/uploadQueue'
@@ -37,9 +38,17 @@ export function PhotoPicker({
   model, recordId, fieldName, folder, maxCount = 10, onChange, value,
 }: PhotoPickerProps) {
   const [photos, setPhotos] = useState<PhotoEntry[]>([])
+  // Already-uploaded photos from a record being edited — distinct from `photos`
+  // state above, which only tracks images picked during this session.
+  const existingImages = value.filter(v => !v.startsWith('__queued__:'))
+  const totalCount = existingImages.length + photos.length
+
+  const removeExisting = (publicId: string) => {
+    onChange(value.filter(v => v !== publicId))
+  }
 
   const addPhotos = async (uris: string[]) => {
-    if (photos.length + uris.length > maxCount) {
+    if (totalCount + uris.length > maxCount) {
       Alert.alert('Too many photos', `Maximum ${maxCount} photos allowed.`)
       return
     }
@@ -115,6 +124,17 @@ export function PhotoPicker({
     <View>
       {/* Photo Grid */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+        {existingImages.map(publicId => (
+          <View key={publicId} style={styles.photoThumb}>
+            <Image source={{ uri: img.thumb(publicId) }} style={styles.thumbImage} />
+            <TouchableOpacity
+              onPress={() => removeExisting(publicId)}
+              style={styles.removeBtn}
+            >
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
         {photos.map(photo => (
           <View key={photo.localId} style={styles.photoThumb}>
             <Image
@@ -147,7 +167,7 @@ export function PhotoPicker({
       </ScrollView>
 
       {/* Action Buttons */}
-      {photos.length < maxCount && (
+      {totalCount < maxCount && (
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity style={styles.addBtn} onPress={handleCamera}>
             <Text style={styles.addBtnText}>📷 Camera</Text>
@@ -159,7 +179,7 @@ export function PhotoPicker({
       )}
 
       <Text style={{ fontSize: 11, color: colors.concrete, marginTop: 6 }}>
-        {photos.length}/{maxCount} photos · Photos save locally and upload when online
+        {totalCount}/{maxCount} photos · Photos save locally and upload when online
       </Text>
     </View>
   )

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, RefreshControl } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { useAuth } from '@clerk/clerk-expo'
 import { api, img } from '@carry/shared'
 import type { Labour, Paginated } from '@carry/shared'
@@ -45,7 +45,9 @@ export default function LabourListScreen() {
     setPendingLabour(labs)
   }, [])
 
-  useEffect(() => { loadPending() }, [loadPending])
+  // On focus, not just mount — a record enqueued from the New screen after this
+  // tab first mounted would otherwise stay invisible until the next app launch.
+  useFocusEffect(useCallback(() => { loadPending() }, [loadPending]))
 
   const allLabour = [...pendingLabour, ...labourList]
 
@@ -54,6 +56,10 @@ export default function LabourListScreen() {
       style={styles.card}
       disabled={item.isPendingSync}
       activeOpacity={0.8}
+      onPress={() => router.push({
+        pathname: '/(tabs)/labour/[id]',
+        params: { id: item.id, record: JSON.stringify(item) },
+      } as any)}
     >
       {item.profilePhotoUrl && !item.isPendingSync ? (
         <Image
