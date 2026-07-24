@@ -14,6 +14,7 @@ import { generateUUID } from '@carry/logic'
 import { useFormPersist } from '../../../hooks/useFormPersist'
 import { enqueuePendingRecord } from '../../../lib/uploadQueue'
 import { flushPendingUploads, flushPendingRecords } from '../../../lib/sync'
+import { isDeviceOnline } from '../../../lib/connectivity'
 import { SinglePhotoPicker } from '../../../components/SinglePhotoPicker'
 import { FormField } from '../../../components/FormField'
 import { ChipSelector } from '../../../components/ChipSelector'
@@ -75,15 +76,21 @@ export default function LabourFormScreen() {
           await api.post('/labour', onlinePayload, token)
           submitted = true
         }
-      } catch { /* offline */ }
+      } catch {
+        // Fall through — determine below whether this was a real connectivity
+        // issue or a request that reached the server and failed.
+      }
 
       if (!submitted) {
         enqueuePendingRecord({
           id: recordId, type: 'labour', payload, createdAt: Date.now(),
         })
+        const deviceOnline = await isDeviceOnline()
         Alert.alert(
-          'Saved Offline',
-          'Labour record saved locally and will sync when you\'re back online.',
+          deviceOnline ? 'Saved — Server Unavailable' : 'Saved Offline',
+          deviceOnline
+            ? 'Labour record saved locally — the server didn\'t respond, but it will retry automatically.'
+            : 'Labour record saved locally and will sync when you\'re back online.',
           [{ text: 'OK', onPress: () => { clear(); router.back() } }]
         )
         return

@@ -14,6 +14,7 @@ import { generateUUID } from '@carry/logic'
 import { useFormPersist } from '../../../hooks/useFormPersist'
 import { enqueuePendingRecord } from '../../../lib/uploadQueue'
 import { flushPendingUploads, flushPendingRecords } from '../../../lib/sync'
+import { isDeviceOnline } from '../../../lib/connectivity'
 import { PhotoPicker } from '../../../components/PhotoPicker'
 import { SinglePhotoPicker } from '../../../components/SinglePhotoPicker'
 import { FormField } from '../../../components/FormField'
@@ -101,7 +102,10 @@ export default function PropertyFormScreen() {
           await api.post('/properties', onlinePayload, token)
           submitted = true
         }
-      } catch { /* offline — queue it */ }
+      } catch {
+        // Fall through — determine below whether this was a real connectivity
+        // issue or a request that reached the server and failed.
+      }
 
       if (!submitted) {
         enqueuePendingRecord({
@@ -110,9 +114,12 @@ export default function PropertyFormScreen() {
           payload,
           createdAt: Date.now(),
         })
+        const deviceOnline = await isDeviceOnline()
         Alert.alert(
-          'Saved Offline',
-          'Your property has been saved and will sync automatically when you\'re back online.',
+          deviceOnline ? 'Saved — Server Unavailable' : 'Saved Offline',
+          deviceOnline
+            ? 'Your property has been saved locally — the server didn\'t respond, but it will retry automatically.'
+            : 'Your property has been saved and will sync automatically when you\'re back online.',
           [{ text: 'OK', onPress: () => { clear(); router.back() } }]
         )
         return

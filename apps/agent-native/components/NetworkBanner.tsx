@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo'
 import { useAuth } from '@clerk/clerk-expo'
 import { runFullSync } from '../lib/sync'
-import { getPendingCount } from '../lib/uploadQueue'
+import { getPendingCount, resetStuckUploads } from '../lib/uploadQueue'
 import { persistToken } from '../lib/auth'
 import { colors } from '../theme/colors'
 
@@ -15,6 +15,7 @@ export function NetworkBanner() {
   const [pendingCount, setPendingCount] = useState(0)
   const opacity = useRef(new Animated.Value(0)).current
   const wasOffline = useRef(false)
+  const isSyncing = useRef(false)
 
   // Show / hide banner
   const show = useCallback(() => {
@@ -25,8 +26,13 @@ export function NetworkBanner() {
     Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }).start()
   }, [opacity])
 
+  // Guarded against overlapping calls — on a weak/flapping signal, NetInfo's
+  // reachability probe can fire several offline→online transitions in a row,
+  // and without this guard each one would kick off its own concurrent
+  // runFullSync() pass over the same SQLite queue.
   const sync = useCallback(async () => {
-    if (!isSignedIn) return
+    if (!isSignedIn || isSyncing.current) return
+    isSyncing.current = true
     try {
       const token = await getToken()
       if (!token) return
@@ -40,10 +46,22 @@ export function NetworkBanner() {
       setTimeout(hide, 3000)
     } catch {
       setStatus('partial')
+    } finally {
+      isSyncing.current = false
     }
   }, [isSignedIn, getToken, show, hide])
 
   useEffect(() => {
+    // The reconnect listener below only fires on a *live* offline→online
+    // transition observed during this session — a cold launch while already
+    // online would otherwise never trigger an automatic sync of anything left
+    // over from a previous session. Check once on mount and sync immediately
+    // if there's pending work and the device is already online.
+    NetInfo.fetch().then((state) => {
+      const isOnline = !!(state.isConnected && state.isInternetReachable)
+      if (isOnline && getPendingCount() > 0) sync()
+    })
+
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
       const isOnline = !!(state.isConnected && state.isInternetReachable)
       if (!isOnline) {
@@ -76,7 +94,7 @@ export function NetworkBanner() {
         {config[status].label}
       </Text>
       {status === 'partial' && (
-        <TouchableOpacity onPress={sync} style={styles.retryBtn}>
+        <TouchableOpacity onPress={() => { resetStuckUploads(); sync() }} style={styles.retryBtn}>
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>Retry</Text>
         </TouchableOpacity>
       )}

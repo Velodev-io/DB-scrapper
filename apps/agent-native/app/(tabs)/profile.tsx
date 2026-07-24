@@ -6,7 +6,7 @@ import {
 import { useAuth, useUser } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
 import {
-  getPendingCount, getPendingRecords, getPendingUploads,
+  getPendingCount, getPendingRecords, getPendingUploads, resetStuckUploads,
 } from '../../lib/uploadQueue'
 import { runFullSync } from '../../lib/sync'
 import { clearAllReadCache } from '../../lib/localCache'
@@ -68,7 +68,12 @@ export default function ProfileScreen() {
       'This will attempt to re-upload all failed records. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Retry', onPress: handleManualSync },
+        {
+          text: 'Retry',
+          // Failed uploads are stuck because they hit MAX_ATTEMPTS — a plain
+          // sync would just re-skip them, so reset the counter first.
+          onPress: () => { resetStuckUploads(); handleManualSync() },
+        },
       ]
     )
   }

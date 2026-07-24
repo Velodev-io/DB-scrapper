@@ -72,6 +72,15 @@ export function incrementUploadAttempts(id: number): void {
   db.runSync(`UPDATE pending_uploads SET attempts = attempts + 1 WHERE id = ?`, [id])
 }
 
+// Resets attempts on every not-yet-uploaded photo so a user-initiated retry
+// can re-attempt uploads that permanently stopped after hitting sync.ts's
+// MAX_ATTEMPTS cap. Automatic syncs (background task, reconnect listener)
+// intentionally respect that cap on their own — only an explicit "Retry"
+// action should give a stuck upload another shot.
+export function resetStuckUploads(): void {
+  db.runSync(`UPDATE pending_uploads SET attempts = 0 WHERE public_id IS NULL`)
+}
+
 export function deleteUpload(localId: string): void {
   db.runSync(`DELETE FROM pending_uploads WHERE local_id = ?`, [localId])
 }
