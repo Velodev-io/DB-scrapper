@@ -20,7 +20,8 @@
       "package": "io.carry.fieldops",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#FDFAF6"
       },
       "permissions": [
@@ -30,7 +31,10 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.WAKE_LOCK"
       ]
     },
     "plugins": [
@@ -49,7 +53,6 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
           "color": "#C8861A"
         }
       ],
@@ -61,11 +64,18 @@
       "typedRoutes": true
     },
     "updates": {
-      "url": "https://u.expo.dev/YOUR_PROJECT_ID",
+      "url": "https://u.expo.dev/0b58442d-6468-48bd-bce8-58b6d856619a",
       "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0b58442d-6468-48bd-bce8-58b6d856619a"
+      }
+    },
+    "owner": "suryanss"
   }
 }
