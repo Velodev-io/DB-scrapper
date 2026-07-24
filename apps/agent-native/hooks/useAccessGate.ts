@@ -7,7 +7,9 @@ export type AccessGateState =
   | { status: 'granted' }
 
 // Mirrors apps/agent/src/App.tsx's AgentGuard: role lives in Clerk's
-// publicMetadata and is only set by an admin after the agent is approved.
+// publicMetadata and is set automatically by the `user.created` webhook
+// (apps/api/src/routes/webhooks.ts) right after sign-up, unless the email
+// belongs to a revoked agent.
 export function useAccessGate(): AccessGateState {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()

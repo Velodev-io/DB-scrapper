@@ -27,16 +27,6 @@ export function Agents() {
     getTokenRef.current = getToken
   }, [getToken])
 
-  // Create profile modal state
-  const [showCreate, setShowCreate] = useState(false)
-  const [createEmail, setCreateEmail] = useState('')
-  const [createName, setCreateName] = useState('')
-  const [createPhone, setCreatePhone] = useState('')
-  const [createAge, setCreateAge] = useState('')
-  const [createRole, setCreateRole] = useState('')
-  const [createLoading, setCreateLoading] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
-
   // Edit modal state
   const [showEdit, setShowEdit] = useState(false)
   const [editAgentId, setEditAgentId] = useState<string | null>(null) // clerkUserId
@@ -72,34 +62,6 @@ export function Agents() {
     const timer = setInterval(() => fetchAgents(true), 5000) // ponytail: simple polling, websocket if scalability matters
     return () => clearInterval(timer)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    setCreateLoading(true)
-    setCreateError(null)
-    try {
-      const token = await getToken()
-      if (!token) throw new Error('Not authenticated')
-      await api.post('/agents', {
-        email: createEmail.trim(),
-        name: createName.trim(),
-        phone: createPhone.trim() || undefined,
-        age: createAge ? parseInt(createAge, 10) : undefined,
-        role: createRole.trim(),
-      }, token)
-      setShowCreate(false)
-      setCreateEmail('')
-      setCreateName('')
-      setCreatePhone('')
-      setCreateAge('')
-      setCreateRole('')
-      fetchAgents()
-    } catch (err: any) {
-      setCreateError(err.message || 'Failed to create agent profile')
-    } finally {
-      setCreateLoading(false)
-    }
-  }
 
   async function handleRevoke(clerkUserId: string) {
     if (!confirm('Revoke this agent\'s access? They will no longer be able to use the agent app.')) return
@@ -145,9 +107,6 @@ export function Agents() {
     <div>
       <div className="page-header">
         <h1>Agents</h1>
-        <button id="btn-create-agent" className="btn-primary" onClick={() => setShowCreate(true)}>
-          + Make Profile
-        </button>
       </div>
 
       {error && <p style={{ color: 'var(--error)', marginBottom: '1rem' }}>{error}</p>}
@@ -343,132 +302,6 @@ export function Agents() {
           </>
         )}
       </div>
-
-      {/* Make Profile Modal */}
-      {showCreate && (
-        <div className="modal-backdrop" onClick={() => setShowCreate(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h2>Make Agent Profile</h2>
-            <form onSubmit={handleCreate}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
-                  Email Address *
-                </label>
-                <input
-                  id="create-email-input"
-                  type="email"
-                  required
-                  value={createEmail}
-                  onChange={e => setCreateEmail(e.target.value)}
-                  placeholder="agent@example.com"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem 0.75rem',
-                    border: '1.5px solid var(--sand)',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
-                  Full Name *
-                </label>
-                <input
-                  id="create-name-input"
-                  type="text"
-                  required
-                  value={createName}
-                  onChange={e => setCreateName(e.target.value)}
-                  placeholder="e.g. Suryansh Singh"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem 0.75rem',
-                    border: '1.5px solid var(--sand)',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
-                  Phone Number
-                </label>
-                <input
-                  id="create-phone-input"
-                  type="text"
-                  value={createPhone}
-                  onChange={e => setCreatePhone(e.target.value)}
-                  placeholder="e.g. +91 9999999999"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem 0.75rem',
-                    border: '1.5px solid var(--sand)',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
-                  Age
-                </label>
-                <input
-                  id="create-age-input"
-                  type="number"
-                  value={createAge}
-                  onChange={e => setCreateAge(e.target.value)}
-                  placeholder="e.g. 25"
-                  min="0"
-                  max="120"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem 0.75rem',
-                    border: '1.5px solid var(--sand)',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--concrete)', marginBottom: '0.25rem' }}>
-                  Role *
-                </label>
-                <input
-                  id="create-role-input"
-                  type="text"
-                  required
-                  value={createRole}
-                  onChange={e => setCreateRole(e.target.value)}
-                  placeholder="e.g. agent or admin"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem 0.75rem',
-                    border: '1.5px solid var(--sand)',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                  }}
-                />
-              </div>
-
-              {createError && <p style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '1rem' }}>{createError}</p>}
-
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowCreate(false)}>
-                  Cancel
-                </button>
-                <button id="btn-save-create" type="submit" className="btn-primary" disabled={createLoading}>
-                  {createLoading ? 'Creating…' : 'Create Profile'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Edit Modal */}
       {showEdit && (
