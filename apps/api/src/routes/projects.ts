@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { prisma } from '../lib/prisma.js'
 import { requireAgent, requireAdmin, getOrCreateAgent } from '../lib/auth.js'
 import { serializeProject } from '../lib/serialize.js'
+import { syncToWebsiteInBackground } from '../lib/websiteSync.js'
 
 export default async function projectRoutes(app: FastifyInstance) {
 
@@ -132,7 +133,14 @@ export default async function projectRoutes(app: FastifyInstance) {
     try {
       const row = await prisma.constructionProject.update({ where: { id }, data,
         include: { agent: { select: { id: true, name: true, email: true } } } })
-      return serializeProject(row)
+      const serialized = serializeProject(row)
+
+      // Same publish/unpublish push as properties — see routes/properties.ts.
+      if (serialized.published || published !== undefined) {
+        syncToWebsiteInBackground({ projects: [serialized] }, request.log)
+      }
+
+      return serialized
     } catch { return reply.code(404).send({ error: 'Project not found' }) }
   })
 

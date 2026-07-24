@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { prisma } from '../lib/prisma.js'
 import { requireAgent, requireAdmin, getOrCreateAgent } from '../lib/auth.js'
 import { serializeProperty } from '../lib/serialize.js'
+import { syncToWebsiteInBackground } from '../lib/websiteSync.js'
 
 export default async function propertyRoutes(app: FastifyInstance) {
 
@@ -135,6 +136,11 @@ export default async function propertyRoutes(app: FastifyInstance) {
         furnishing: {type:'string'}, description: {type:'string'},
         images: {type:'array', items:{type:'string'}},
         floorPlanUrl: {type:'string'}, lat: {type:'number'}, lng: {type:'number'},
+        securityDeposit: {type:'integer'}, availableFrom: {type:'string'},
+        preferredTenant: {type:'string'}, petFriendly: {type:'boolean'},
+        maintenanceCharges: {type:'integer'}, leaseDuration: {type:'integer'},
+        lockInPeriod: {type:'integer'}, camCharges: {type:'integer'},
+        plotAllowedUse: {type:'string'},
       }}
     }
   }, async (request, reply) => {
@@ -151,7 +157,9 @@ export default async function propertyRoutes(app: FastifyInstance) {
     // Strip immutable fields — only update what the agent sent
     const { title, propertyType, listingType, bhk, priceInr, priceLabel,
             areaSqft, locality, city, address, reraNumber, status, furnishing,
-            description, images, floorPlanUrl, lat, lng } = body
+            description, images, floorPlanUrl, lat, lng,
+            securityDeposit, availableFrom, preferredTenant, petFriendly, maintenanceCharges,
+            leaseDuration, lockInPeriod, camCharges, plotAllowedUse } = body
     const data: any = { reviewStatus: 'pending' }
     if (title         !== undefined) data.title         = title
     if (propertyType  !== undefined) data.propertyType  = propertyType
@@ -171,6 +179,15 @@ export default async function propertyRoutes(app: FastifyInstance) {
     if (floorPlanUrl  !== undefined) data.floorPlanUrl  = floorPlanUrl
     if (lat           !== undefined) data.lat           = lat
     if (lng           !== undefined) data.lng           = lng
+    if (securityDeposit    !== undefined) data.securityDeposit    = securityDeposit
+    if (availableFrom      !== undefined) data.availableFrom      = availableFrom
+    if (preferredTenant    !== undefined) data.preferredTenant    = preferredTenant
+    if (petFriendly        !== undefined) data.petFriendly        = petFriendly
+    if (maintenanceCharges !== undefined) data.maintenanceCharges = maintenanceCharges
+    if (leaseDuration      !== undefined) data.leaseDuration      = leaseDuration
+    if (lockInPeriod       !== undefined) data.lockInPeriod       = lockInPeriod
+    if (camCharges         !== undefined) data.camCharges         = camCharges
+    if (plotAllowedUse     !== undefined) data.plotAllowedUse     = plotAllowedUse
     try {
       const row = await prisma.property.update({ where: { id }, data,
         include: { agent: { select: { id: true, name: true, email: true } } } })
@@ -245,7 +262,16 @@ export default async function propertyRoutes(app: FastifyInstance) {
     try {
       const row = await prisma.property.update({ where: { id }, data,
         include: { agent: { select: { id: true, name: true, email: true } } } })
-      return serializeProperty(row)
+      const serialized = serializeProperty(row)
+
+      // Push to the public website when the listing is live there, or when this
+      // request just unpublished it (so the site hides it too). Runs in the
+      // background — a website outage must not fail the publish here.
+      if (serialized.published || published !== undefined) {
+        syncToWebsiteInBackground({ properties: [serialized] }, request.log)
+      }
+
+      return serialized
     } catch { return reply.code(404).send({ error: 'Property not found' }) }
   })
 
